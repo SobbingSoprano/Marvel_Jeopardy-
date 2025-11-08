@@ -1,0 +1,354 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Anton', sans-serif;
+}
+
+.video-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.video-background video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: opacity 1s ease-in-out;
+}
+
+.video-background video:nth-child(1) {
+    animation: fadeInOut1 120s infinite;
+}
+
+.video-background video:nth-child(2) {
+    animation: fadeInOut2 120s infinite;
+}
+
+.video-background video:nth-child(3) {
+    animation: fadeInOut3 120s infinite;
+}
+
+.video-background video:nth-child(4) {
+    animation: fadeInOut4 120s infinite;
+}
+
+.video-background video:nth-child(5) {
+    animation: fadeInOut5 120s infinite;
+}
+
+.video-background video:nth-child(6) {
+    animation: fadeInOut6 120s infinite;
+}
+
+.video-background video:nth-child(7) {
+    animation: fadeInOut7 120s infinite;
+}
+
+.video-background video:nth-child(8) {
+    animation: fadeInOut8 120s infinite;
+}
+
+@keyframes fadeInOut1 {
+    0% {
+        opacity: 1;
+    }
+
+    10.5% {
+        opacity: 1;
+    }
+
+    12.5% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInOut2 {
+    0% {
+        opacity: 0;
+    }
+
+    12.5% {
+        opacity: 0;
+    }
+
+    13.5% {
+        opacity: 1;
+    }
+
+    23.5% {
+        opacity: 1;
+    }
+
+    24.5% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInOut3 {
+    0% {
+        opacity: 0;
+    }
+
+    24.5% {
+        opacity: 0;
+    }
+
+    25.5% {
+        opacity: 1;
+    }
+
+    36.5% {
+        opacity: 1;
+    }
+
+    37.5% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInOut4 {
+    0% {
+        opacity: 0;
+    }
+
+    37.5% {
+        opacity: 0;
+    }
+
+    38.5% {
+        opacity: 1;
+    }
+
+    49.5% {
+        opacity: 1;
+    }
+
+    50.5% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInOut5 {
+    0% {
+        opacity: 0;
+    }
+
+    50.5% {
+        opacity: 0;
+    }
+
+    51.5% {
+        opacity: 1;
+    }
+
+    61.5% {
+        opacity: 1;
+    }
+
+    62.5% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInOut6 {
+    0% {
+        opacity: 0;
+    }
+
+    62.5% {
+        opacity: 0;
+    }
+
+    63.5% {
+        opacity: 1;
+    }
+
+    74.5% {
+        opacity: 1;
+    }
+
+    75.5% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInOut7 {
+    0% {
+        opacity: 0;
+    }
+
+    75.5% {
+        opacity: 0;
+    }
+
+    76.5% {
+        opacity: 1;
+    }
+
+    86.5% {
+        opacity: 1;
+    }
+
+    87.5% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInOut8 {
+    0% {
+        opacity: 0;
+    }
+
+    87.5% {
+        opacity: 0;
+    }
+
+    88.5% {
+        opacity: 1;
+    }
+
+    99% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 80px;
+    height: 100vh;
+    position: relative;
+    z-index: 1;
+    padding-bottom: 17vh;
+}
+
+.player-option {
+    width: 200px;
+    height: 200px;
+    background: black;
+    border: 4px solid transparent;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 72px;
+    color: #ff0000;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: none;
+    position: relative;
+    backdrop-filter: blur(0px);
+}
+
+.player-option:hover {
+    transform: scale(1.25);
+    background: transparent;
+    border-color: #ff0000;
+    box-shadow: 0 0 50px rgba(255, 0, 0, 0.6);
+    backdrop-filter: blur(0px);
+}
+
+.player-icons {
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.player-option:hover .player-icons {
+    opacity: 1;
+}
+
+
+/* Title */
+.title {
+    position: fixed;
+    top: 3vh;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    font-size: 90px;
+    font-weight: bold;
+}
+
+.title-wrapper {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 5px;
+}
+
+.title-marvel {
+    background-color: black;
+    color: red;
+    padding: 0px 12px;
+    letter-spacing: 3px;
+    font-family: 'Bangers', system-ui;
+}
+
+.title-jeopardy {
+    color: black;
+    position: relative;
+    top: 70px;
+    font-family: 'Six Caps', sans-serif;
+}
+
+/* Audio Player */
+.audio-player {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+}
