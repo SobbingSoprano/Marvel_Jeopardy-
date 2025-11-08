@@ -339,30 +339,101 @@ body {
 }
 
 @keyframes marvelColorPulse {
-    0% { color: red; }
-    10.5% { color: red; }
-    12.5% { color: white; }
-    13.5% { color: red; }
-    23.5% { color: red; }
-    24.5% { color: white; }
-    25.5% { color: red; }
-    36.5% { color: red; }
-    37.5% { color: white; }
-    38.5% { color: red; }
-    49.5% { color: red; }
-    50.5% { color: white; }
-    51.5% { color: red; }
-    61.5% { color: red; }
-    62.5% { color: white; }
-    63.5% { color: red; }
-    74.5% { color: red; }
-    75.5% { color: white; }
-    76.5% { color: red; }
-    86.5% { color: red; }
-    87.5% { color: white; }
-    88.5% { color: red; }
-    99% { color: red; }
-    100% { color: red; }
+    0% {
+        color: red;
+    }
+
+    10.5% {
+        color: red;
+    }
+
+    12.5% {
+        color: white;
+    }
+
+    13.5% {
+        color: red;
+    }
+
+    23.5% {
+        color: red;
+    }
+
+    24.5% {
+        color: white;
+    }
+
+    25.5% {
+        color: red;
+    }
+
+    36.5% {
+        color: red;
+    }
+
+    37.5% {
+        color: white;
+    }
+
+    38.5% {
+        color: red;
+    }
+
+    49.5% {
+        color: red;
+    }
+
+    50.5% {
+        color: white;
+    }
+
+    51.5% {
+        color: red;
+    }
+
+    61.5% {
+        color: red;
+    }
+
+    62.5% {
+        color: white;
+    }
+
+    63.5% {
+        color: red;
+    }
+
+    74.5% {
+        color: red;
+    }
+
+    75.5% {
+        color: white;
+    }
+
+    76.5% {
+        color: red;
+    }
+
+    86.5% {
+        color: red;
+    }
+
+    87.5% {
+        color: white;
+    }
+
+    88.5% {
+        color: red;
+    }
+
+    99% {
+        color: red;
+    }
+
+    100% {
+        color: red;
+    }
 }
 
 .title-jeopardy {
