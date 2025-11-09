@@ -326,7 +326,6 @@ body {
 .title-wrapper {
     display: inline-flex;
     align-items: flex-end;
-    gap: 5px;
 }
 
 .title-marvel {
@@ -439,8 +438,17 @@ body {
 .title-jeopardy {
     color: black;
     position: relative;
-    top: 70px;
+    letter-spacing: 1px;
+    top: 105px;
+    font-size: 120px;
     font-family: 'Six Caps', sans-serif;
+    transition: color 0.3s ease-out;
+    font-weight: 100;
+    transform: scaleX(0.85);
+}
+
+body:has(.player-option:hover) .title-jeopardy {
+    color: red;
 }
 
 /* Audio Player */
