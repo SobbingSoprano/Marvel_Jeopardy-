@@ -462,3 +462,166 @@ body:has(.player-option:hover) .title-jeopardy .exclamation {
     transform: translateX(-50%);
     z-index: 100;
 }
+
+/* ==================== 2 PLAYER GAME PAGE ==================== */
+
+body.game-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh;
+    background: #ff0000;
+}
+
+body.game-page .title {
+    position: static !important;
+    margin-top: 0 !important;
+    margin-bottom: 2vh;
+    left: unset;
+    top: unset;
+    transform: none;
+    z-index: 10;
+}
+
+body.game-page .title-marvel {
+    animation: none !important;
+}
+
+.jeopardy-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    width: 50vw;
+    max-width: 700px;
+    min-width: 320px;
+    aspect-ratio: 1.2/1;
+    /* slightly wider than tall for Jeopardy look */
+    margin: 0 auto;
+    margin-top: 100px;
+    background: black;
+    position: relative;
+    box-shadow: 0 0 40px 0 rgba(0, 0, 0, 0.4);
+}
+
+.grid-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 1.5vw;
+    color: #ff0000;
+    background: #111;
+    border: 2px solid #ff0000;
+    text-align: center;
+    transition: background 0.2s, color 0.2s;
+    user-select: none;
+}
+
+.grid-cell.value-cell {
+    font-family: 'Anton', cursive;
+}
+
+.grid-cell.category-cell {
+    font-family: 'Bungee', cursive;
+    color: #ff0000;
+}
+
+.category-cell {
+    background: black;
+    color: #fff;
+    font-size: 1.2vw;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-bottom: 3px solid #ff0000;
+}
+
+.value-cell:hover {
+    background: #330000;
+    color: #fff;
+    cursor: pointer;
+    transform: scale(1.05);
+    transition: all 0.3s ease-in-out;
+}
+
+.jeopardy-grid .grid-cell:nth-child(6n) {
+    border-right: none;
+}
+
+.jeopardy-grid .grid-cell:nth-last-child(-n+6) {
+    border-bottom: none;
+}
+
+.jeopardy-flex-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3vw;
+    width: 100%;
+    margin: 0 auto;
+    max-width: 1200px;
+}
+
+.player-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2em;
+    min-width: 120px;
+    flex: 0 0 160px;
+}
+
+.player-icon {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-icon svg {
+    fill: #222 !important;
+}
+
+.player-label {
+    font-family: 'Bungee', cursive;
+    color: #fff;
+    font-size: 1.1em;
+    margin-top: 0.2em;
+    letter-spacing: 1px;
+}
+
+.score-box {
+    background: #111;
+    color: #ff0000;
+    font-family: 'Monoton', cursive;
+    font-size: 1.2em;
+    border-radius: 10px;
+    padding: 0.4em 1.2em;
+    margin-bottom: 0.5em;
+    margin-top: 0.2em;
+    min-width: 60px;
+    text-align: center;
+    transition: background 0.3s, color 0.3s;
+}
+
+.buzzer-box {
+    background: #111;
+    color: #ff0000;
+    font-family: 'Bungee', cursive;
+    font-size: 1.1em;
+    border-radius: 8px;
+    padding: 0.3em 1.1em;
+    margin-top: 0.7em;
+    min-width: 50px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.3s, color 0.3s;
+}
+
+.buzzer-box:hover {
+    background: #fff;
+    color: #ff0000;
+}
