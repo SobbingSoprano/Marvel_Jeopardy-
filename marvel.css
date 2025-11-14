@@ -10,6 +10,97 @@ body {
     font-family: 'Anton', sans-serif;
 }
 
+/* CSS-only Preloader */
+.preloader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #ff0000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+/* Homepage preloader - longer delay for videos and audio */
+.preloader-homepage {
+    animation: fadeOut 0.5s ease-out 5s forwards;
+}
+
+/* Game page preloader - shorter delay */
+.preloader-gamepage {
+    animation: fadeOut 0.5s ease-out 1.5s forwards;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+.preloader-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 40px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+.preloader-marvel {
+    background-color: black;
+    color: #ff0000;
+    padding: 10px 20px;
+    letter-spacing: 3px;
+    font-family: 'Bangers', system-ui;
+    font-size: 60px;
+}
+
+.preloader-jeopardy {
+    color: black;
+    font-size: 48px;
+    font-family: 'Six Caps', sans-serif;
+    font-weight: 100;
+}
+
+.preloader-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid black;
+    border-top: 5px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 .video-background {
     position: fixed;
     top: 0;
@@ -326,6 +417,17 @@ body {
 .title-wrapper {
     display: inline-flex;
     align-items: flex-end;
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.title-wrapper:hover {
+    opacity: 1;
+}
+
+.title-wrapper:hover .title-marvel {
+    color: white;
 }
 
 .title-marvel {
@@ -335,6 +437,7 @@ body {
     letter-spacing: 3px;
     font-family: 'Bangers', system-ui;
     animation: marvelColorPulse 120s infinite;
+    transition: color 0.3s ease-in-out;
 }
 
 @keyframes marvelColorPulse {
@@ -465,6 +568,88 @@ body:has(.player-option:hover) .title-jeopardy .exclamation {
 
 /* ==================== 2 PLAYER GAME PAGE ==================== */
 
+/* CSS-only Preloader */
+.preloader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #ff0000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeOut 0.5s ease-out 1.5s forwards;
+    pointer-events: none;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+.preloader-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 40px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+.preloader-marvel {
+    background-color: black;
+    color: #ff0000;
+    padding: 10px 20px;
+    letter-spacing: 3px;
+    font-family: 'Bangers', system-ui;
+    font-size: 60px;
+}
+
+.preloader-jeopardy {
+    color: black;
+    font-size: 48px;
+    font-family: 'Six Caps', sans-serif;
+    font-weight: 100;
+}
+
+.preloader-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid black;
+    border-top: 5px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 body.game-page {
     display: flex;
     flex-direction: column;
@@ -493,11 +678,9 @@ body.game-page .title-marvel {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     grid-template-rows: repeat(6, 1fr);
-    width: 50vw;
-    max-width: 700px;
-    min-width: 320px;
-    aspect-ratio: 1.2/1;
-    /* slightly wider than tall for Jeopardy look */
+    width: 700px;
+    height: 583px;
+    /* Fixed height based on 1.2:1 aspect ratio */
     margin: 0 auto;
     margin-top: 100px;
     background: black;
@@ -510,7 +693,8 @@ body.game-page .title-marvel {
     align-items: center;
     justify-content: center;
     font-family: 'Anton', sans-serif;
-    font-size: 1.5vw;
+    font-size: 22px;
+    /* Fixed font size instead of vw */
     color: #ff0000;
     background: #111;
     border: 2px solid #ff0000;
@@ -520,18 +704,19 @@ body.game-page .title-marvel {
 }
 
 .grid-cell.value-cell {
-    font-family: 'Anton', cursive;
+    font-family: 'Anton', sans-serif;
 }
 
 .grid-cell.category-cell {
-    font-family: 'Bungee', cursive;
+    font-family: 'Monoton', cursive;
     color: #ff0000;
 }
 
 .category-cell {
     background: black;
     color: #fff;
-    font-size: 1.2vw;
+    font-size: 18px;
+    /* Fixed font size instead of vw */
     font-weight: bold;
     letter-spacing: 1px;
     border-bottom: 3px solid #ff0000;
@@ -543,6 +728,20 @@ body.game-page .title-marvel {
     cursor: pointer;
     transform: scale(1.05);
     transition: all 0.3s ease-in-out;
+}
+
+.used-cell {
+    background: #ff0000 !important;
+    color: #000 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    font-weight: bold;
+    opacity: 0.8;
+}
+
+.used-cell:hover {
+    background: #ff0000 !important;
+    transform: none !important;
 }
 
 .jeopardy-grid .grid-cell:nth-child(6n) {
@@ -569,8 +768,10 @@ body.game-page .title-marvel {
     align-items: center;
     justify-content: center;
     gap: 1.2em;
-    min-width: 120px;
-    flex: 0 0 160px;
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+    flex-shrink: 0;
 }
 
 .player-icon {
@@ -619,9 +820,406 @@ body.game-page .title-marvel {
     text-align: center;
     cursor: pointer;
     transition: background 0.3s, color 0.3s;
+    text-decoration: none;
+    display: block;
 }
 
 .buzzer-box:hover {
     background: #fff;
     color: #ff0000;
+}
+
+.buzzer-inactive {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.buzzer-active {
+    animation: buzzPulse 1s infinite;
+}
+
+@keyframes buzzPulse {
+
+    0%,
+    100% {
+        background: #ff0000;
+        color: #000;
+        transform: scale(1);
+    }
+
+    50% {
+        background: #fff;
+        color: #ff0000;
+        transform: scale(1.1);
+    }
+}
+
+.active-player {
+    opacity: 1;
+}
+
+.active-player .player-icon svg {
+    filter: drop-shadow(0 0 10px #fff);
+}
+
+.player-indicator {
+    text-align: center;
+    font-family: 'Bungee', cursive;
+    font-size: 1.2em;
+    color: #fff;
+    margin-bottom: 1em;
+    padding: 0.5em;
+    background: #333;
+    border-radius: 8px;
+}
+
+.waiting-message {
+    text-align: center;
+    padding: 3em 2em;
+}
+
+.waiting-message h2 {
+    font-family: 'Bungee', cursive;
+    font-size: 2em;
+    color: #ff0000;
+    margin-bottom: 1em;
+}
+
+.waiting-message p {
+    font-size: 1.2em;
+    color: #fff;
+}
+
+
+/* Question Form Overlay */
+.question-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.question-card {
+    background: #222;
+    border: 3px solid #ff0000;
+    border-radius: 15px;
+    padding: 3em 2.5em;
+    max-width: 600px;
+    pointer-events: auto;
+    width: 90%;
+    box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2em;
+    padding-bottom: 1em;
+    border-bottom: 2px solid #ff0000;
+}
+
+.question-category {
+    font-family: 'Bungee', cursive;
+    color: #fff;
+    font-size: 1.5em;
+    letter-spacing: 1px;
+}
+
+.question-value {
+    font-family: 'Monoton', cursive;
+    color: #ff0000;
+    font-size: 1.8em;
+}
+
+.question-text {
+    font-family: 'Anton', sans-serif;
+    color: #fff;
+    font-size: 1.4em;
+    line-height: 1.6;
+    margin-bottom: 1.5em;
+    padding: 1em;
+    background: #111;
+    border-radius: 10px;
+    border: 2px solid #ff0000;
+    text-align: center;
+}
+
+.question-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5em;
+}
+
+.question-label {
+    font-family: 'Bungee', cursive;
+    color: #fff;
+    font-size: 1.2em;
+}
+
+.question-input {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.3em;
+    padding: 0.7em;
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    background: #111;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.question-input:focus {
+    border-color: #fff;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+}
+
+.question-buttons {
+    display: flex;
+    gap: 1em;
+    margin-top: 1em;
+}
+
+.submit-btn,
+.cancel-btn {
+    flex: 1;
+    font-family: 'Bungee', cursive;
+    font-size: 1.1em;
+    padding: 0.8em;
+    border-radius: 8px;
+    border: 2px solid #ff0000;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+}
+
+.submit-btn {
+    background: #ff0000;
+    color: #000;
+}
+
+.submit-btn:hover {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+.cancel-btn {
+    background: #222;
+    color: #ff0000;
+}
+
+.cancel-btn:hover {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+/* Make grid cells clickable links */
+.jeopardy-grid a.grid-cell {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Feedback styles */
+.feedback-correct {
+    border-color: #00ff00 !important;
+}
+
+.feedback-incorrect {
+    border-color: #ff0000 !important;
+}
+
+.feedback-result {
+    text-align: center;
+    padding: 2em 0;
+}
+
+.feedback-icon {
+    font-size: 5em;
+    margin-bottom: 0.3em;
+}
+
+.feedback-correct .feedback-icon {
+    color: #00ff00;
+}
+
+.feedback-incorrect .feedback-icon {
+    color: #ff0000;
+}
+
+.feedback-result h2 {
+    font-family: 'Bungee', cursive;
+    font-size: 2.5em;
+    margin: 0.5em 0;
+}
+
+.feedback-correct h2 {
+    color: #00ff00;
+}
+
+.feedback-incorrect h2 {
+    color: #ff0000;
+}
+
+.feedback-answer {
+    margin-top: 1.5em;
+    padding: 1.5em;
+    background: #111;
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+}
+
+.feedback-answer p {
+    margin: 0.8em 0;
+    font-size: 1.1em;
+    line-height: 1.6;
+}
+
+.feedback-answer strong {
+    color: #ff0000;
+}
+
+/* Number Guessing Screen */
+.number-guess-card {
+    max-width: 800px !important;
+}
+
+.guess-title {
+    font-family: 'Bungee', cursive;
+    font-size: 2.5em;
+    color: #ff0000;
+    text-align: center;
+    margin-bottom: 0.5em;
+}
+
+.guess-instructions {
+    text-align: center;
+    font-size: 1.2em;
+    color: #fff;
+    margin-bottom: 2em;
+}
+
+.guess-container {
+    display: flex;
+    gap: 3em;
+    justify-content: center;
+    margin-bottom: 2em;
+}
+
+.player-guess-section {
+    flex: 1;
+    text-align: center;
+}
+
+.player-guess-section h3 {
+    font-family: 'Bungee', cursive;
+    font-size: 1.5em;
+    color: #ff0000;
+    margin-bottom: 1em;
+}
+
+.guess-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+}
+
+.guess-form label {
+    font-size: 1.1em;
+    color: #fff;
+}
+
+.guess-form input[type="number"] {
+    background: #111;
+    color: #fff;
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    padding: 0.8em;
+    font-size: 1.2em;
+    text-align: center;
+    font-family: 'Anton', sans-serif;
+}
+
+.guess-form input[type="number"]:focus {
+    outline: none;
+    border-color: #fff;
+    background: #222;
+}
+
+.guess-submitted {
+    font-size: 1.5em;
+    color: #00ff00;
+    padding: 2em;
+    font-family: 'Bungee', cursive;
+}
+
+.guess-results {
+    text-align: center;
+    padding: 2em;
+    background: #111;
+    border-radius: 12px;
+    margin-top: 2em;
+}
+
+.guess-results h3 {
+    font-family: 'Bungee', cursive;
+    font-size: 1.8em;
+    color: #ff0000;
+    margin-bottom: 1em;
+}
+
+.guess-results p {
+    font-size: 1.2em;
+    color: #fff;
+    margin: 0.5em 0;
+}
+
+.guess-results strong {
+    color: #ff0000;
+    font-family: 'Anton', sans-serif;
+}
+
+.winner-announce {
+    font-family: 'Bungee', cursive;
+    font-size: 1.8em !important;
+    color: #00ff00 !important;
+    margin: 1.5em 0 !important;
+}
+
+/* Turn Indicator */
+.turn-indicator {
+    background: #00ff00;
+    color: #000;
+    font-family: 'Bungee', cursive;
+    font-size: 1em;
+    border-radius: 8px;
+    padding: 0.5em 1em;
+    margin-top: 0.7em;
+    text-align: center;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+    }
 }
