@@ -559,11 +559,7 @@ body:has(.player-option:hover) .title-jeopardy .exclamation {
 
 /* Audio Player */
 .audio-player {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
+    display: none;
 }
 
 /* ==================== 2 PLAYER GAME PAGE ==================== */
@@ -860,7 +856,7 @@ body.game-page .title-marvel {
 }
 
 .active-player .player-icon svg {
-    filter: drop-shadow(0 0 10px #fff);
+    fill: #fff;
 }
 
 .player-indicator {
@@ -1199,7 +1195,7 @@ body.game-page .title-marvel {
 
 /* Turn Indicator */
 .turn-indicator {
-    background: #00ff00;
+    background: #fff;
     color: #000;
     font-family: 'Bungee', cursive;
     font-size: 1em;
@@ -1222,4 +1218,130 @@ body.game-page .title-marvel {
         opacity: 0.7;
         transform: scale(1.05);
     }
+}
+
+/* Daily Double Styles */
+.daily-double-audio {
+    display: none;
+    /* Hide the audio controls */
+}
+
+.daily-double-card {
+    max-width: 600px !important;
+}
+
+.daily-double-header {
+    text-align: center;
+    margin-bottom: 2em;
+}
+
+.daily-double-title {
+    font-family: 'Monoton', sans-serif;
+    font-size: 4em;
+    color: #ff0000;
+    margin: 0;
+    animation: dailyDoublePulse 0.9s infinite ease-out;
+}
+
+@keyframes dailyDoublePulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        color: #ff0000;
+    }
+
+    50% {
+        transform: scale(1.1);
+        color: white;
+    }
+}
+
+.daily-double-subtitle {
+    font-family: 'Bungee', cursive;
+    font-size: 1.5em;
+    color: #fff;
+    margin-top: 1em;
+}
+
+.wager-info {
+    background: #000;
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    padding: 1.5em;
+    margin-bottom: 2em;
+}
+
+.wager-info p {
+    margin: 0.8em 0;
+    font-size: 1.2em;
+    color: #fff;
+}
+
+.wager-info strong {
+    color: #ff0000;
+}
+
+.wager-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5em;
+}
+
+.wager-form label {
+    font-family: 'Bungee', cursive;
+    font-size: 1.3em;
+    color: #ff0000;
+}
+
+.wager-form input[type="number"] {
+    font-family: 'Six Caps', sans-serif;
+    font-size: 2.5em;
+    padding: 0.5em;
+    background: #000;
+    border: 3px solid #ff0000;
+    border-radius: 8px;
+    color: #ff0000;
+    text-align: center;
+}
+
+.wager-form input[type="number"]:focus {
+    outline: none;
+    border-color: #ff0000;
+    box-shadow: 0 0 15px #ff0000;
+}
+
+.daily-double-question-card {
+    max-width: 700px !important;
+}
+
+.timer-container {
+    text-align: center;
+    margin: 1.5em 0;
+    padding: 1em;
+    background: #111;
+    border: 3px solid #ff0000;
+    border-radius: 8px;
+}
+
+.timer-label {
+    font-family: 'Bungee', cursive;
+    font-size: 1em;
+    color: #fff;
+    margin-bottom: 0.5em;
+}
+
+.timer-display {
+    font-family: 'Anton', sans-serif;
+    font-size: 3em;
+    color: #ff0000;
+    font-weight: bold;
+    text-shadow: 0 0 10px #ff0000;
+}
+
+.answer-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+    margin-top: 2em;
 }

@@ -11,6 +11,21 @@ if (!isset($_SESSION['game_initialized'])) {
     $_SESSION['player1_score'] = 0;
     $_SESSION['player2_score'] = 0;
     $_SESSION['current_turn'] = null; // Will be determined by number guessing
+    
+    // Initialize Daily Double cells (2 random cells)
+    $categories = ['People', 'Powers', 'Artifacts', 'Media', 'Teams', 'Places'];
+    $values = ['$200', '$400', '$600', '$800', '$1000'];
+    $allCells = [];
+    foreach ($categories as $cat) {
+        foreach ($values as $val) {
+            $allCells[] = $cat . '|' . $val;
+        }
+    }
+    shuffle($allCells);
+    $_SESSION['daily_doubles'] = [
+        $allCells[0] => true,
+        $allCells[1] => true
+    ];
 }
 
 // Close session writing early to allow concurrent requests
@@ -235,14 +250,31 @@ function validateAnswer($userAnswer, $correctAnswers)
     return false;
 }
 
+// Handle wager submission for Daily Double
+if (isset($_POST['wager']) && isset($_POST['category']) && isset($_POST['value'])) {
+    session_start();
+    $_SESSION['daily_double_wager'] = (int)$_POST['wager'];
+    $_SESSION['daily_double_category'] = $_POST['category'];
+    $_SESSION['daily_double_value'] = $_POST['value'];
+    $_SESSION['daily_double_player'] = $_SESSION['current_turn'];
+    $_SESSION['daily_double_start_time'] = time();
+    session_write_close();
+    header('Location: ' . $_SERVER['PHP_SELF'] . '?daily_double=1&category=' . urlencode($_POST['category']) . '&value=' . urlencode($_POST['value']));
+    exit;
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['answer']) && isset($_POST['category']) && isset($_POST['value'])) {
         session_start(); // Reopen session to write
         
+        // Check if this is a Daily Double answer
+        $isDailyDouble = isset($_POST['daily_double']) && $_POST['daily_double'] === '1';
+        $wager = $isDailyDouble ? ($_SESSION['daily_double_wager'] ?? 0) : 0;
+        
         // Find the correct answer from the questions array
         $correctAnswer = '';
-        $pointValue = (int)str_replace('$', '', $_POST['value']);
+        $pointValue = $isDailyDouble ? $wager : (int)str_replace('$', '', $_POST['value']);
 
         foreach ($questions as $q) {
             if (
@@ -265,7 +297,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($isCorrect) {
             $_SESSION[$scoreKey] += $pointValue;
         } else {
+            // For Daily Double, deduct wager; for regular questions, deduct point value
             $_SESSION[$scoreKey] -= $pointValue;
+        }
+        
+        // Clear Daily Double session data if applicable
+        if ($isDailyDouble) {
+            unset($_SESSION['daily_double_wager']);
+            unset($_SESSION['daily_double_category']);
+            unset($_SESSION['daily_double_value']);
+            unset($_SESSION['daily_double_player']);
+            unset($_SESSION['daily_double_start_time']);
         }
 
         // Store the answer for later parsing
@@ -325,9 +367,34 @@ $gameStarted = $_SESSION['game_started'] ?? false;
 $player1Guess = $_SESSION['player1_guess'] ?? null;
 $player2Guess = $_SESSION['player2_guess'] ?? null;
 $targetNumber = $_SESSION['target_number'] ?? 0;
+$dailyDoubles = $_SESSION['daily_doubles'] ?? [];
+
+// Check if showing Daily Double wager screen
+$showDailyDoubleWager = false;
+$dailyDoubleCategory = '';
+$dailyDoubleValue = '';
+if (isset($_GET['show_wager']) && isset($_GET['category']) && isset($_GET['value'])) {
+    $showDailyDoubleWager = true;
+    $dailyDoubleCategory = $_GET['category'];
+    $dailyDoubleValue = $_GET['value'];
+}
+
+// Check if showing Daily Double question with timer
+$showDailyDoubleQuestion = false;
+$dailyDoubleTimeRemaining = 30;
+if (isset($_GET['daily_double']) && isset($_GET['category']) && isset($_GET['value'])) {
+    session_start();
+    $showDailyDoubleQuestion = true;
+    $dailyDoubleCategory = $_GET['category'];
+    $dailyDoubleValue = $_GET['value'];
+    $startTime = $_SESSION['daily_double_start_time'] ?? time();
+    $elapsed = time() - $startTime;
+    $dailyDoubleTimeRemaining = max(0, 30 - $elapsed);
+    session_write_close();
+}
 
 // Check if a cell was clicked
-$showForm = isset($_GET['category']) && isset($_GET['value']) && $gameStarted;
+$showForm = isset($_GET['category']) && isset($_GET['value']) && $gameStarted && !$showDailyDoubleWager && !$showDailyDoubleQuestion;
 $category = $showForm ? htmlspecialchars($_GET['category']) : '';
 $value = $showForm ? htmlspecialchars($_GET['value']) : '';
 
@@ -381,11 +448,13 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
         </a>
     </div>
 
-    <!-- Audio Player -->
-    <audio class="audio-player game-audio" controls loop>
+    <!-- Audio Player (only play on non-Daily Double screens) -->
+    <?php if (!$showDailyDoubleWager && !$showDailyDoubleQuestion): ?>
+    <audio class="audio-player game-audio" controls loop autoplay>
         <source src="Assets/Sounds/krakoa match.wav" type="audio/wav">
         Your browser does not support the audio element.
     </audio>
+    <?php endif; ?>
 
     <?php if (!$gameStarted): ?>
         <!-- Number Guessing Screen -->
@@ -436,6 +505,80 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
                         <a href="2P.php" class="submit-btn">Start Game</a>
                     </div>
                 <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($showDailyDoubleWager && $gameStarted): ?>
+        <!-- Daily Double Wager Screen -->
+        <?php
+        // Calculate max wager: player's score, or card value if score is 0
+        $currentPlayerScore = $currentTurn == 1 ? $player1Score : $player2Score;
+        $cardValue = (int)str_replace('$', '', $dailyDoubleValue);
+        $maxWager = $currentPlayerScore > 0 ? $currentPlayerScore : $cardValue;
+        ?>
+        <div class="question-overlay">
+            <audio class="daily-double-audio" autoplay loop>
+                <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+                Your browser does not support the audio element.
+            </audio>
+            <div class="question-card daily-double-card">
+                <div class="daily-double-header">
+                    <h1 class="daily-double-title">DAILY DOUBLE!</h1>
+                    <p class="daily-double-subtitle">Player <?php echo $currentTurn; ?>, how much do you want to wager?</p>
+                </div>
+                <div class="wager-info">
+                    <p><strong>Your Current Score:</strong> $<?php echo $currentPlayerScore; ?></p>
+                    <p><strong>Maximum Wager:</strong> $<?php echo $maxWager; ?></p>
+                </div>
+                <form method="POST" action="2P.php" class="wager-form">
+                    <input type="hidden" name="category" value="<?php echo htmlspecialchars($dailyDoubleCategory); ?>">
+                    <input type="hidden" name="value" value="<?php echo htmlspecialchars($dailyDoubleValue); ?>">
+                    <label for="wager">Enter your wager:</label>
+                    <input type="number" id="wager" name="wager" min="5" 
+                           max="<?php echo $maxWager; ?>" 
+                           value="<?php echo $maxWager; ?>" 
+                           required autofocus>
+                    <button type="submit" class="submit-btn">Lock In Wager</button>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($showDailyDoubleQuestion && $gameStarted): ?>
+        <!-- Daily Double Question -->
+        <div class="question-overlay">
+            <audio class="daily-double-audio" autoplay loop>
+                <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+                Your browser does not support the audio element.
+            </audio>
+            <div class="question-card daily-double-question-card">
+                <div class="question-header">
+                    <span class="question-category"><?php echo $dailyDoubleCategory; ?></span>
+                    <span class="question-value">DAILY DOUBLE</span>
+                </div>
+                <div class="player-indicator">Player <?php echo $currentTurn; ?> - Wager: $<?php echo $_SESSION['daily_double_wager'] ?? 0; ?></div>
+                <?php
+                // Find the question for this Daily Double
+                $ddQuestion = '';
+                if (isset($_SESSION['question_assignments'][$dailyDoubleCategory][$dailyDoubleValue])) {
+                    $ddQuestion = $_SESSION['question_assignments'][$dailyDoubleCategory][$dailyDoubleValue];
+                }
+                ?>
+                <?php if ($ddQuestion): ?>
+                    <div class="question-text"><?php echo htmlspecialchars($ddQuestion); ?></div>
+                <?php endif; ?>
+                <form method="POST" action="2P.php" class="answer-form">
+                    <input type="hidden" name="category" value="<?php echo htmlspecialchars($dailyDoubleCategory); ?>">
+                    <input type="hidden" name="value" value="<?php echo htmlspecialchars($dailyDoubleValue); ?>">
+                    <input type="hidden" name="question" value="<?php echo htmlspecialchars($ddQuestion); ?>">
+                    <input type="hidden" name="daily_double" value="1">
+                    <label for="dd_answer">Your Answer:</label>
+                    <input type="text" id="dd_answer" name="answer" class="question-input" placeholder="Type your answer..." required autofocus>
+                    <div class="question-buttons">
+                        <button type="submit" class="submit-btn">Submit Answer</button>
+                    </div>
+                </form>
             </div>
         </div>
     <?php endif; ?>
@@ -526,11 +669,17 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
                 foreach ($categories as $cat) {
                     $cellKey = $cat . '|' . $val;
                     $isUsed = isset($_SESSION['used_cells'][$cellKey]);
+                    $isDailyDouble = isset($dailyDoubles[$cellKey]);
 
                     if ($isUsed) {
                         echo "\n            <div class=\"grid-cell value-cell used-cell\">{$val}</div>";
                     } else {
-                        echo "\n            <a href=\"2P.php?category={$cat}&value={$val}\" class=\"grid-cell value-cell\">{$val}</a>";
+                        // If it's a Daily Double, link to wager screen; otherwise normal question
+                        $link = $isDailyDouble 
+                            ? "2P.php?show_wager=1&category={$cat}&value={$val}"
+                            : "2P.php?category={$cat}&value={$val}";
+                        $ddClass = $isDailyDouble ? ' daily-double-cell' : '';
+                        echo "\n            <a href=\"{$link}\" class=\"grid-cell value-cell{$ddClass}\">{$val}</a>";
                     }
                 }
             }
