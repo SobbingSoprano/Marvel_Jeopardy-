@@ -393,31 +393,7 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
         </div>
     <?php endif; ?>
 
-    <?php if ($showFeedback && $feedbackData): ?>
-        <!-- Feedback Overlay -->
-        <div class="question-overlay">
-            <div
-                class="question-card <?php echo $feedbackData['is_correct'] ? 'feedback-correct' : 'feedback-incorrect'; ?>">
-                <div class="feedback-result">
-                    <?php if ($feedbackData['is_correct']): ?>
-                        <div class="feedback-icon">✓</div>
-                        <h2>CORRECT!</h2>
-                    <?php else: ?>
-                        <div class="feedback-icon">✗</div>
-                        <h2>INCORRECT</h2>
-                        <div class="feedback-answer">
-                            <p><strong>Your answer:</strong> <?php echo htmlspecialchars($feedbackData['user_answer']); ?></p>
-                            <p><strong>Correct answer:</strong> <?php echo htmlspecialchars($feedbackData['correct_answer']); ?>
-                            </p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="question-buttons">
-                    <a href="2P.php" class="submit-btn">Continue</a>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
+
 
     <!-- Flex Row with Player Elements -->
     <div class="jeopardy-flex-row">
@@ -452,7 +428,7 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
                     <?php else: ?>
                         <?php $link = $isDailyDouble ? "2P.php?show_wager=1&category=$cat&value=$val" : "2P.php?category=$cat&value=$val"; ?>
                         <a href="<?= $link ?>"
-                            class="grid-cell value-cell<?= $isDailyDouble ? ' daily-double-cell' : '' ?>"><?= $val ?></a>
+                            class="grid-cell value-cell<?= $isDailyDouble ? ' hidden-daily-double-cell' : '' ?>"><?= $val ?></a>
                     <?php endif; ?>
                 <?php endforeach; ?>
             <?php endforeach; ?>
