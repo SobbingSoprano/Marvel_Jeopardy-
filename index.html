@@ -2,20 +2,20 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Marvel Jeopardy!</title>
 
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
         href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bungee&family=Monoton&family=Six+Caps&display=swap"
-        rel="stylesheet">
+        rel="stylesheet"
+    />
 
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="marvel.css">
-
+    <link rel="stylesheet" href="marvel.css" />
 </head>
 
 <body>
@@ -31,28 +31,28 @@
     <!-- Video Background -->
     <div class="video-background">
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip1.mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip1.mp4" type="video/mp4" />
         </video>
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip2.mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip2.mp4" type="video/mp4" />
         </video>
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip3 - Made With Clipchamp.mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip3 - Made With Clipchamp.mp4" type="video/mp4" />
         </video>
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip4 - Made With Clipchamp.mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip4 - Made With Clipchamp.mp4" type="video/mp4" />
         </video>
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip5 - Made With Clipchamp.mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip5 - Made With Clipchamp.mp4" type="video/mp4" />
         </video>
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip6 - Made With Clipchamp (1).mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip6 - Made With Clipchamp (1).mp4" type="video/mp4" />
         </video>
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip7 - Made With Clipchamp (1).mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip7 - Made With Clipchamp (1).mp4" type="video/mp4" />
         </video>
         <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip8 - Made With Clipchamp (1).mp4" type="video/mp4">
+            <source src="Assets/Videos/Clip8 - Made With Clipchamp (1).mp4" type="video/mp4" />
         </video>
     </div>
 
@@ -66,6 +66,8 @@
 
     <!-- Player Selection -->
     <div class="container">
+
+        <!-- 2 Players -->
         <div class="player-option" onclick="window.location.href='2P.php'">
             <div class="player-icons">
                 <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 48 48" fill="#ff0000">
@@ -79,40 +81,44 @@
             </div>
             <p class="player-number">2P</p>
         </div>
-        <div class="player-option" onclick="window.location.href='game.html?players=3'">
+
+        <!-- 3 Players -->
+        <div class="player-option" onclick="window.location.href='3P.php'">
             <div class="player-icons">
-                <svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 48 48' fill='#ff0000'>
-                    <circle cx='24' cy='18' r='12' />
-                    <rect x='8' y='32' width='32' height='12' rx='6' />
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="#ff0000" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
                 </svg>
-                <svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 48 48' fill='#ff0000'>
-                    <circle cx='24' cy='18' r='12' />
-                    <rect x='8' y='32' width='32' height='12' rx='6' />
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="#ff0000" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
                 </svg>
-                <svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 48 48' fill='#ff0000'>
-                    <circle cx='24' cy='18' r='12' />
-                    <rect x='8' y='32' width='32' height='12' rx='6' />
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="#ff0000" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
                 </svg>
             </div>
             <p class="player-number">3P</p>
         </div>
-        <div class="player-option" onclick="window.location.href='game.html?players=4'">
+
+        <!-- 4 Players -->
+        <div class="player-option" onclick="window.location.href='4P.php'">
             <div class="player-icons">
-                <svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 48 48' fill='#ff0000'>
-                    <circle cx='24' cy='18' r='12' />
-                    <rect x='8' y='32' width='32' height='12' rx='6' />
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="#ff0000" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
                 </svg>
-                <svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 48 48' fill='#ff0000'>
-                    <circle cx='24' cy='18' r='12' />
-                    <rect x='8' y='32' width='32' height='12' rx='6' />
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="#ff0000" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
                 </svg>
-                <svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 48 48' fill='#ff0000'>
-                    <circle cx='24' cy='18' r='12' />
-                    <rect x='8' y='32' width='32' height='12' rx='6' />
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="#ff0000" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
                 </svg>
-                <svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 48 48' fill='#ff0000'>
-                    <circle cx='24' cy='18' r='12' />
-                    <rect x='8' y='32' width='32' height='12' rx='6' />
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="#ff0000" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
                 </svg>
             </div>
             <p class="player-number">4P</p>
@@ -121,12 +127,8 @@
 
     <!-- Audio Player -->
     <audio controls loop class="audio-player">
-        <source src="Assets/Sounds/krakoa menu theme.wav" type="audio/wav">
+        <source src="Assets/Sounds/krakoa menu theme.wav" type="audio/wav" />
         Your browser does not support the audio element.
     </audio>
-
-
-
 </body>
-
 </html>
