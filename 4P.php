@@ -33,10 +33,10 @@ if (!isset($_SESSION['4p_initialized'])) {
     $_SESSION['used_cells'] = [];
 
     // Select Daily Double cell randomly
-    $categories = ['People','Powers','Artifacts','Media','Teams','Places'];
-    $values = ['$200','$400','$600','$800','$1000'];
-    $_SESSION['daily_double'] = 
-        $categories[array_rand($categories)] . "|" . 
+    $categories = ['People', 'Powers', 'Artifacts', 'Media', 'Teams', 'Places'];
+    $values = ['$200', '$400', '$600', '$800', '$1000'];
+    $_SESSION['daily_double'] =
+        $categories[array_rand($categories)] . "|" .
         $values[array_rand($values)];
 
     // Create question map
@@ -56,30 +56,26 @@ if (isset($_GET['reset'])) {
 /* ============================================================
    HANDLE NUMBER GUESSING (BEFORE GAME STARTS)
    ============================================================ */
-if (isset($_POST['player']) && isset($_POST['guess']) && !$_SESSION['game_started']) {
-
-    $p = (int)$_POST['player'];
-    $g = (int)$_POST['guess'];
-
-    if ($g >= 1 && $g <= 50 && $_SESSION['guesses'][$p] === null) {
-        $_SESSION['guesses'][$p] = $g;
+if (isset($_POST['all_guesses'])) {
+    $allValid = true;
+    for ($i = 1; $i <= 4; $i++) {
+        $guess = isset($_POST['guess'][$i]) ? (int) $_POST['guess'][$i] : null;
+        if ($guess === null || $guess < 1 || $guess > 50) {
+            $allValid = false;
+            break;
+        }
+        $_SESSION['guesses'][$i] = $guess;
     }
-
-    // All players guessed → determine winner
-    if (!in_array(null, $_SESSION['guesses'])) {
-
+    if ($allValid) {
         $target = $_SESSION['target_number'];
         $diffs = [];
-
         foreach ($_SESSION['guesses'] as $i => $v) {
             $diffs[$i] = abs($target - $v);
         }
-
         $winner = array_search(min($diffs), $diffs);
         $_SESSION['current_turn'] = $winner;
         $_SESSION['game_started'] = true;
     }
-
     header("Location: 4P.php");
     exit();
 }
@@ -128,7 +124,7 @@ if (isset($_POST['answer_submit'])) {
     $isCorrect = in_array($answer, $correct);
 
     // Points
-    $points = (int)str_replace(['$'], "", $value);
+    $points = (int) str_replace(['$'], "", $value);
 
     // Daily Double? (double the money)
     $key = "$category|$value";
@@ -163,175 +159,197 @@ if (isset($_POST['answer_submit'])) {
 }
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>4 Player Jeopardy!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvel Jeopardy! - 4 Players</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bungee&family=Monoton&family=Six+Caps&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="marvel.css">
 </head>
 
 <body class="game-page">
-
-<!-- HEADER -->
-<div class="title">
-    <a href="4P.php?reset=1" class="title-wrapper">
-        <span class="title-marvel">MARVEL</span>
-        <span class="title-jeopardy">Jeopardy!</span>
-    </a>
-</div>
-
-<!-- ============================================================
-     NUMBER GUESSING
-============================================================ -->
-<?php if (!$_SESSION['game_started']): ?>
-<div class="question-overlay">
-    <div class="question-card number-guess-card">
-
-        <h2 class="guess-title">Who Goes First?</h2>
-        <p class="guess-instructions">Pick a number between 1 and 50.</p>
-
-        <div class="guess-container">
-            <?php foreach ($_SESSION['player_names'] as $i => $name): ?>
-                <div class="player-guess-section">
-                    <h3><?= htmlspecialchars($name) ?></h3>
-
-                    <?php if ($_SESSION['guesses'][$i] === null): ?>
-                        <form method="POST">
-                            <input type="hidden" name="player" value="<?= $i ?>">
-                            <input type="number" name="guess" min="1" max="50" required>
-                            <button class="submit-btn">Submit</button>
-                        </form>
-                    <?php else: ?>
-                        <div class="guess-submitted">✓ Submitted</div>
-                    <?php endif; ?>
-
-                </div>
-            <?php endforeach; ?>
+    <!-- CSS Preloader -->
+    <div class="preloader preloader-gamepage">
+        <div class="preloader-logo">
+            <span class="preloader-marvel">MARVEL</span>
+            <span class="preloader-jeopardy">Jeopardy!</span>
         </div>
+        <div class="preloader-spinner"></div>
+    </div>
+    <!-- Title -->
+    <div class="title">
+        <a href="4P.php?reset=1" class="title-wrapper"
+            onclick="return confirm('Are you sure you want to reset the game?');">
+            <span class="title-marvel">MARVEL</span>
+            <span class="title-jeopardy">Jeopardy!</span>
+        </a>
+    </div>
+    <!-- Audio Player (only play on non-Daily Double screens) -->
+    <?php if (empty($showForm) || !$isDailyDouble): ?>
+        <audio class="audio-player game-audio" controls loop autoplay>
+            <source src="Assets/Sounds/krakoa match.wav" type="audio/wav">
+            Your browser does not support the audio element.
+        </audio>
+    <?php endif; ?>
 
-        <!-- All numbers submitted -->
-        <?php if (!in_array(null, $_SESSION['guesses'])): ?>
-            <div class="guess-results">
-                <h3>Results</h3>
-                <p>Target Number: <strong><?= $_SESSION['target_number'] ?></strong></p>
-
-                <?php foreach ($_SESSION['guesses'] as $i => $g): ?>
-                    <p><?= $_SESSION['player_names'][$i] ?> guessed <strong><?= $g ?></strong></p>
-                <?php endforeach; ?>
-
-                <p class="winner-announce">
-                    <?= $_SESSION['player_names'][$_SESSION['current_turn']] ?> goes first!
-                </p>
-
-                <a href="4P.php" class="submit-btn">Start Game</a>
+    <!-- Number Guessing Screen -->
+    <?php if (!$_SESSION['game_started']): ?>
+        <div class="question-overlay">
+            <div class="question-card number-guess-card">
+                <h2 class="guess-title">Who Goes First?</h2>
+                <p class="guess-instructions">Each player picks a number between 1-50. Closest to the target wins!</p>
+                <form method="POST" action="4P.php" class="guess-form" style="width:100%;">
+                    <div class="guess-container">
+                        <?php for ($i = 1; $i <= 4; $i++): ?>
+                            <div class="player-guess-section">
+                                <h3>Player <?= $i ?></h3>
+                                <label for="guess<?= $i ?>">Pick a number (1-50):</label>
+                                <input type="number" id="guess<?= $i ?>" name="guess[<?= $i ?>]" min="1" max="50" required
+                                    value="<?= isset($_SESSION['guesses'][$i]) ? $_SESSION['guesses'][$i] : '' ?>">
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+                    <div style="text-align:center; margin-top:2em;">
+                        <button type="submit" name="all_guesses" class="cancel-btn">Submit All Guesses</button>
+                    </div>
+                </form>
+                <?php if (!in_array(null, $_SESSION['guesses'])): ?>
+                    <div class="guess-results">
+                        <h3>Results:</h3>
+                        <p>Target Number: <strong><?= $_SESSION['target_number'] ?></strong></p>
+                        <?php for ($i = 1; $i <= 4; $i++): ?>
+                            <p><?= htmlspecialchars($_SESSION['player_names'][$i]) ?> guessed:
+                                <strong><?= $_SESSION['guesses'][$i] ?></strong> (off by
+                                <?= abs($_SESSION['target_number'] - $_SESSION['guesses'][$i]) ?>)
+                            </p>
+                        <?php endfor; ?>
+                        <p class="winner-announce"><?= htmlspecialchars($_SESSION['player_names'][$_SESSION['current_turn']]) ?>
+                            goes first!</p>
+                        <a href="4P.php" class="submit-btn">Start Game</a>
+                    </div>
+                <?php else: ?>
+                    <div style="text-align:center; margin-top:2em;">
+                        <a href="index.html" class="cancel-btn" style="margin-top:1em;">Back to Homepage</a>
+                    </div>
+                <?php endif; ?>
             </div>
-        <?php endif; ?>
-
-    </div>
-</div>
-<?php endif; ?>
-
-<!-- ============================================================
-     QUESTION POPUP
-============================================================ -->
-<?php if ($showForm): ?>
-<div class="question-overlay">
-    <div class="question-card">
-
-        <div class="question-header">
-            <span class="question-category"><?= $category ?></span>
-            <span class="question-value"><?= $value ?></span>
         </div>
+    <?php endif; ?>
 
-        <?php if ($isDailyDouble): ?>
-            <div class="question-text dd-text">DAILY DOUBLE!!!</div>
-        <?php endif; ?>
-
-        <div class="question-text">
-            <?= htmlspecialchars($questionText) ?>
+    <!-- Question Form Overlay -->
+    <?php if ($showForm): ?>
+        <div class="question-overlay">
+            <div class="question-card">
+                <div class="question-header">
+                    <span class="question-category"><?= htmlspecialchars($category) ?></span>
+                    <span class="question-value"><?= htmlspecialchars($value) ?></span>
+                </div>
+                <div class="player-indicator">Player <?= $_SESSION['current_turn'] ?> is answering...</div>
+                <?php if ($isDailyDouble): ?>
+                    <div class="question-text dd-text">DAILY DOUBLE!!!</div>
+                <?php endif; ?>
+                <div class="question-text">
+                    <?= htmlspecialchars($questionText) ?>
+                </div>
+                <form method="POST" action="4P.php" class="question-form">
+                    <input type="hidden" name="category" value="<?= htmlspecialchars($category) ?>">
+                    <input type="hidden" name="value" value="<?= htmlspecialchars($value) ?>">
+                    <input type="hidden" name="question_text" value="<?= htmlspecialchars($questionText) ?>">
+                    <label for="answer" class="question-label">Enter your answer:</label>
+                    <input type="text" id="answer" name="answer" class="question-input" autofocus required>
+                    <div class="question-buttons">
+                        <button name="answer_submit" class="submit-btn">Submit Answer</button>
+                        <a href="4P.php" class="cancel-btn">Cancel</a>
+                    </div>
+                </form>
+            </div>
         </div>
+    <?php endif; ?>
 
-        <form method="POST">
-
-            <input type="hidden" name="category" value="<?= $category ?>">
-            <input type="hidden" name="value" value="<?= $value ?>">
-            <input type="hidden" name="question_text" value="<?= htmlspecialchars($questionText) ?>">
-
-            <label class="question-label">
-                Answer (<?= $_SESSION['player_names'][$_SESSION['current_turn']] ?>):
-            </label>
-            <input type="text" name="answer" class="question-input" required>
-
-            <button name="answer_submit" class="submit-btn">Submit Answer</button>
-            <a href="4P.php" class="cancel-btn">Cancel</a>
-        </form>
-
-    </div>
-</div>
-<?php endif; ?>
-
-<!-- ============================================================
+    <!-- ============================================================
      MAIN BOARD + PLAYER SCORES
 ============================================================ -->
-<div class="jeopardy-flex-row">
+    <div class="jeopardy-flex-row">
 
-    <!-- LEFT SIDE PLAYERS -->
-    <div style="display:flex;flex-direction:column;gap:20px;">
-        <?php for ($i=1; $i<=2; $i++): ?>
-            <div class="player-block <?= ($_SESSION['current_turn']==$i ? 'active-player' : '') ?>">
-                <div class="score-box">$<?= $_SESSION['player_scores'][$i] ?></div>
-                <div class="player-icon"></div>
-                <div class="player-label"><?= htmlspecialchars($_SESSION['player_names'][$i]) ?></div>
-                <?php if ($_SESSION['current_turn']==$i): ?>
-                    <div class="turn-indicator">Your Turn</div>
-                <?php endif; ?>
-            </div>
-        <?php endfor; ?>
-    </div>
+        <!-- LEFT SIDE PLAYERS -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+            <?php for ($i = 1; $i <= 2; $i++): ?>
+                <div class="player-block <?= ($_SESSION['current_turn'] == $i ? 'active-player' : '') ?>">
+                    <div class="score-box">$<?= $_SESSION['player_scores'][$i] ?></div>
+                    <div class="player-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                            <circle cx="24" cy="18" r="12" />
+                            <rect x="8" y="32" width="32" height="12" rx="6" />
+                        </svg>
+                    </div>
+                    <div class="player-label"><?= htmlspecialchars($_SESSION['player_names'][$i]) ?></div>
+                    <?php if ($_SESSION['current_turn'] == $i): ?>
+                        <div class="turn-indicator">Your Turn</div>
+                    <?php endif; ?>
+                </div>
+            <?php endfor; ?>
+        </div>
 
-    <!-- GAME GRID -->
-    <div class="jeopardy-grid">
+        <!-- GAME GRID -->
+        <div class="jeopardy-grid">
 
-        <?php
-        $cats = ['People','Powers','Artifacts','Media','Teams','Places'];
-        $vals = ['$200','$400','$600','$800','$1000'];
+            <?php
+            $cats = ['People', 'Powers', 'Artifacts', 'Media', 'Teams', 'Places'];
+            $vals = ['$200', '$400', '$600', '$800', '$1000'];
 
-        // header row
-        foreach ($cats as $c) {
-            echo "<div class='grid-cell category-cell'>$c</div>";
-        }
-
-        // value rows
-        foreach ($vals as $v) {
+            // header row
             foreach ($cats as $c) {
-                $key = "$c|$v";
-                if (isset($_SESSION['used_cells'][$key])) {
-                    echo "<div class='grid-cell value-cell used-cell'>$v</div>";
-                } else {
-                    echo "<a class='grid-cell value-cell' href='4P.php?category=$c&value=$v'>$v</a>";
+                echo "<div class='grid-cell category-cell'>$c</div>";
+            }
+
+            // value rows
+            foreach ($vals as $v) {
+                foreach ($cats as $c) {
+                    $key = "$c|$v";
+                    if (isset($_SESSION['used_cells'][$key])) {
+                        echo "<div class='grid-cell value-cell used-cell'>$v</div>";
+                    } else {
+                        echo "<a class='grid-cell value-cell' href='4P.php?category=$c&value=$v'>$v</a>";
+                    }
                 }
             }
-        }
-        ?>
+            ?>
+
+        </div>
+
+        <!-- RIGHT SIDE PLAYERS -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+            <?php for ($i = 3; $i <= 4; $i++): ?>
+                <div class="player-block <?= ($_SESSION['current_turn'] == $i ? 'active-player' : '') ?>">
+                    <div class="score-box">$<?= $_SESSION['player_scores'][$i] ?></div>
+                    <div class="player-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                            <circle cx="24" cy="18" r="12" />
+                            <rect x="8" y="32" width="32" height="12" rx="6" />
+                        </svg>
+                    </div>
+                    <div class="player-label">Player <?= $i ?></div>
+                    <div class="player-label" style="color:#fff; font-size:1em; margin-top:0.2em;">
+                        <?= htmlspecialchars($_SESSION['player_names'][$i]) ?>
+                    </div>
+                    <?php if ($_SESSION['current_turn'] == $i): ?>
+                        <div class="turn-indicator">Your Turn</div>
+                    <?php endif; ?>
+                </div>
+            <?php endfor; ?>
+        </div>
 
     </div>
-
-    <!-- RIGHT SIDE PLAYERS -->
-    <div style="display:flex;flex-direction:column;gap:20px;">
-        <?php for ($i=3; $i<=4; $i++): ?>
-            <div class="player-block <?= ($_SESSION['current_turn']==$i ? 'active-player' : '') ?>">
-                <div class="score-box">$<?= $_SESSION['player_scores'][$i] ?></div>
-                <div class="player-icon"></div>
-                <div class="player-label"><?= htmlspecialchars($_SESSION['player_names'][$i]) ?></div>
-                <?php if ($_SESSION['current_turn']==$i): ?>
-                    <div class="turn-indicator">Your Turn</div>
-                <?php endif; ?>
-            </div>
-        <?php endfor; ?>
-    </div>
-
-</div>
 
 </body>
+
 </html>
