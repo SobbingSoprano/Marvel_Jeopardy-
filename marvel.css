@@ -1435,3 +1435,12 @@ body.game-page .title-marvel {
     gap: 1em;
     margin-top: 2em;
 }
+
+/* 3-PLAYER LAYOUT */
+.player-stack {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Aligns players to the top */
+    gap: 2em; /* Adjust spacing between P1 and P3 */
+    width: 180px; /* This should match your .player-block width */
+}
