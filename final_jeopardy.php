@@ -37,12 +37,13 @@ if ($_SESSION['fj_stage'] === "wager" && $_SERVER["REQUEST_METHOD"] === "POST") 
 
     for ($i = 1; $i <= $totalPlayers; $i++) {
         $key = "wager_" . $i;
-        $wagers[$i] = max(0, (int)$_POST[$key]);
-
-        // Prevent wager > score
-        if ($wagers[$i] > $playerScores[$i]) {
-            $wagers[$i] = $playerScores[$i];
+        $score = $playerScores[$i];
+        $maxWager = max(abs($score), 0); // Allow negative scores to wager up to abs(score)
+        $wager = max(0, (int)$_POST[$key]);
+        if ($wager > $maxWager) {
+            $wager = $maxWager;
         }
+        $wagers[$i] = $wager;
     }
 
     $_SESSION['final_wagers'] = $wagers;
@@ -122,10 +123,10 @@ if ($_SESSION['fj_stage'] === "question" && $_SERVER["REQUEST_METHOD"] === "POST
                 <label class="question-label">
                     <?php echo htmlspecialchars($playerNames[$i]); ?> (Score: $<?php echo $playerScores[$i]; ?>)
                 </label>
-                <input type="number" 
-                       min="0" max="<?php echo $playerScores[$i]; ?>"
-                       name="wager_<?php echo $i; ?>" 
-                       required class="question-input">
+                  <input type="number" 
+                      min="0" max="<?php echo max(abs($playerScores[$i]), 0); ?>"
+                      name="wager_<?php echo $i; ?>" 
+                      required class="question-input">
             <?php endfor; ?>
 
             <button type="submit" class="submit-btn">Submit Wagers</button>

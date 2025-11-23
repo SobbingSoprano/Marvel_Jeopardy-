@@ -25,25 +25,25 @@ if (!isset($_SESSION['3p_initialized'])) {
         3 => "Player 3"
     ];
 
-  
+
     $_SESSION['player_scores'] = [1 => 0, 2 => 0, 3 => 0];
 
-    
+
     $_SESSION['used_cells'] = [];
 
-   
+
     $categories = getCategoryList();
     $values = getValueList();
     $_SESSION['daily_double'] =
         $categories[array_rand($categories)] . "|" .
         $values[array_rand($values)];
 
-  
+
     $_SESSION['question_map'] = getRandomizedQuestionMap($allQuestions);
 }
 
 
-session_write_close(); 
+session_write_close();
 
 
 if (isset($_GET['reset'])) {
@@ -87,15 +87,15 @@ if (isset($_POST['all_guesses'])) {
         foreach ($_SESSION['guesses'] as $i => $v) {
             $diffs[$i] = abs($target - $v);
         }
-        
-     
+
+
         $winner = array_search(min($diffs), $diffs);
-        
-        
+
+
         $minDiff = min($diffs);
         $tiedPlayers = array_keys(array_filter($diffs, fn($diff) => $diff === $minDiff));
         $winner = min($tiedPlayers);
-        
+
         $_SESSION['current_turn'] = $winner;
         $_SESSION['game_started'] = true;
     }
@@ -107,37 +107,40 @@ if (isset($_POST['all_guesses'])) {
 /* ============================================================
     HANDLE DAILY DOUBLE WAGER SUBMISSION
     ============================================================ */
-if (isset($_POST['wager']) && isset($_POST['category']) && isset($_POST['value'])) {
+// Only process wager POST if coming from the wager overlay (show_wager param in URL)
+if (isset($_POST['wager']) && isset($_POST['category']) && isset($_POST['value']) && isset($_GET['show_wager'])) {
     session_start();
     $wager = max(5, (int) $_POST['wager']); // Minimum wager of $5
-    
+
     $currentPlayerScore = $_SESSION['player_scores'][$_SESSION['current_turn']] ?? 0;
     $cardValue = (int) str_replace('$', '', $_POST['value']);
-    $maxWager = $currentPlayerScore > 0 ? $currentPlayerScore : $cardValue;
-    
+    $absScore = abs($currentPlayerScore);
+    // Allow max wager to be abs(score) if negative, or score if positive, or card value if both are less than card value
+    $maxWager = max($absScore, $cardValue);
+
     $wager = min($wager, $maxWager); // Cap wager at max
-    
+
     $_SESSION['daily_double_wager'] = $wager;
     $_SESSION['daily_double_player'] = $_SESSION['current_turn'];
     $_SESSION['daily_double_start_time'] = time();
 
     session_write_close();
     header('Location: 3P.php?daily_double=1&category=' . urlencode($_POST['category']) . '&value=' . urlencode($_POST['value']));
-    exit;
+    exit();
 }
 
 
 if (isset($_POST['answer']) && isset($_POST['category']) && isset($_POST['value'])) {
     session_start();
-    
+
     $isDailyDouble = isset($_POST['daily_double']) && $_POST['daily_double'] === '1';
     $category = $_POST['category'];
     $value = $_POST['value'];
     $questionText = $_POST['question'];
-    
-    $activePlayer = $isDailyDouble ? ($_SESSION['daily_double_player'] ?? $_SESSION['current_turn']) : $_SESSION['current_turn']; 
 
-    
+    $activePlayer = $isDailyDouble ? ($_SESSION['daily_double_player'] ?? $_SESSION['current_turn']) : $_SESSION['current_turn'];
+
+
     $pointValue = (int) str_replace('$', '', $value); // Base value
     $wager = $isDailyDouble ? ($_SESSION['daily_double_wager'] ?? $pointValue) : $pointValue;
     $pointValue = $isDailyDouble ? $wager : $pointValue;
@@ -147,7 +150,7 @@ if (isset($_POST['answer']) && isset($_POST['category']) && isset($_POST['value'
     $correct = array_map('strtolower', $correctAnswers);
     $isCorrect = in_array($answer, $correct);
 
-   
+
     $_SESSION['player_scores'][$activePlayer] += $isCorrect ? $pointValue : -$pointValue;
 
     // Mark cell as used
@@ -157,8 +160,8 @@ if (isset($_POST['answer']) && isset($_POST['category']) && isset($_POST['value'
     // Turn Rotation & Feedback Storage
     if ($isCorrect) {
         // Player answered correctly, they keep the turn
-        $_SESSION['current_turn'] = $activePlayer; 
-        
+        $_SESSION['current_turn'] = $activePlayer;
+
         // Store feedback ONLY if correct
         $_SESSION['last_feedback'] = [
             'is_correct' => true,
@@ -170,14 +173,14 @@ if (isset($_POST['answer']) && isset($_POST['category']) && isset($_POST['value'
             'category' => $category,
             'value' => $value
         ];
-        
+
     } else {
         // Player was wrong, rotate turn: 1 -> 2 -> 3 -> 1
         $_SESSION['current_turn'] = ($activePlayer % NUM_PLAYERS) + 1;
-       
+
     }
 
-    
+
     if ($isDailyDouble) {
         unset($_SESSION['daily_double_wager']);
         unset($_SESSION['daily_double_player']);
@@ -192,8 +195,8 @@ if (isset($_POST['answer']) && isset($_POST['category']) && isset($_POST['value'
     }
 
     session_write_close();
-    
-    
+
+
     if ($isCorrect) {
         header('Location: 3P.php?feedback=1');
     } else {
@@ -219,13 +222,13 @@ if (isset($_GET['category']) && isset($_GET['value']) && ($_SESSION['game_starte
     }
 
     // 2. Check for Daily Double
-    if ($cellKey === ($_SESSION['daily_double'] ?? '')) {
+    if ($cellKey === ($_SESSION['daily_double'] ?? '') && !isset($_GET['show_wager'])) {
         session_write_close();
         // Redirect to the wager screen
         header("Location: 3P.php?show_wager=1&category=" . urlencode($category) . "&value=" . urlencode($value));
         exit;
     }
-    
+
     // 3. Standard Question (Execution continues to display logic below)
     session_write_close();
 }
@@ -252,7 +255,8 @@ $maxWager = 0;
 if ($showDailyDoubleWager) {
     $currentPlayerScore = $playerScores[$currentTurn] ?? 0;
     $cardValue = (int) str_replace('$', '', $dailyDoubleValue);
-    $maxWager = $currentPlayerScore > 0 ? $currentPlayerScore : $cardValue;
+    $absScore = abs($currentPlayerScore);
+    $maxWager = max($absScore, $cardValue);
 }
 
 // --- Daily Double Question Display ---
@@ -361,7 +365,8 @@ session_write_close();
             <div class="question-card daily-double-card">
                 <div class="daily-double-header">
                     <h1 class="daily-double-title">DAILY DOUBLE!</h1>
-                    <p class="daily-double-subtitle">Player <?= $currentTurn; ?> (<?= $playerNames[$currentTurn]; ?>), how much do you want to wager?</p>
+                    <p class="daily-double-subtitle">Player <?= $currentTurn; ?> (<?= $playerNames[$currentTurn]; ?>), how
+                        much do you want to wager?</p>
                 </div>
                 <div class="wager-info">
                     <p><strong>Your Current Score:</strong> $<?= $playerScores[$currentTurn] ?></p>
@@ -371,8 +376,8 @@ session_write_close();
                     <input type="hidden" name="category" value="<?= $dailyDoubleCategory; ?>">
                     <input type="hidden" name="value" value="<?= $dailyDoubleValue; ?>">
                     <label for="wager">Enter your wager:</label>
-                    <input type="number" id="wager" name="wager" min="5" max="<?= $maxWager; ?>"
-                        value="<?= $maxWager; ?>" required autofocus>
+                    <input type="number" id="wager" name="wager" min="5" max="<?= $maxWager; ?>" value="<?= $maxWager; ?>"
+                        required autofocus>
                     <button type="submit" class="submit-btn">Lock In Wager</button>
                 </form>
             </div>
@@ -416,7 +421,8 @@ session_write_close();
                     <span class="question-category"><?= $category; ?></span>
                     <span class="question-value"><?= $value; ?></span>
                 </div>
-                <div class="player-indicator">Player <?= $currentTurn; ?> (<?= $playerNames[$currentTurn]; ?>) is answering...</div>
+                <div class="player-indicator">Player <?= $currentTurn; ?> (<?= $playerNames[$currentTurn]; ?>) is
+                    answering...</div>
                 <div class="question-text"><?= htmlspecialchars($selectedQuestion); ?></div>
                 <form method="POST" action="3P.php" class="question-form">
                     <input type="hidden" name="category" value="<?= $category; ?>">
@@ -432,7 +438,7 @@ session_write_close();
             </div>
         </div>
     <?php endif; ?>
-    
+
     <?php if ($showFeedback && $feedbackData['is_correct']): ?>
         <div class="question-overlay feedback-overlay">
             <div class="question-card feedback-card">
@@ -452,7 +458,7 @@ session_write_close();
     <div class="jeopardy-flex-row three-player-board">
 
         <div class="player-stack">
-            
+
             <div class="player-block <?= ($gameStarted && $currentTurn == 1) ? 'active-player' : '' ?>">
                 <div class="score-box">$<?= $playerScores[1] ?></div>
                 <div class="player-icon">
@@ -480,7 +486,8 @@ session_write_close();
                     <div class="turn-indicator">Your Turn</div>
                 <?php endif; ?>
             </div>
-        </div> <div class="jeopardy-grid">
+        </div>
+        <div class="jeopardy-grid">
             <?php $categories = getCategoryList(); ?>
             <?php foreach ($categories as $cat): ?>
                 <div class="grid-cell category-cell"><?= $cat ?></div>
@@ -491,21 +498,22 @@ session_write_close();
                     <?php $cellKey = $cat . '|' . $val; ?>
                     <?php $isUsed = isset($_SESSION['used_cells'][$cellKey]); ?>
                     <?php $isDailyDouble = ($cellKey === $dailyDoubleKey); ?>
-                    
+
                     <?php if ($isUsed || !$gameStarted): ?>
                         <div class="grid-cell value-cell used-cell"><?= $val ?></div>
                     <?php else: ?>
-                        <?php 
-                        $link = "3P.php?category=" . urlencode($cat) . "&value=" . urlencode($val); 
+                        <?php
+                        $link = "3P.php?category=" . urlencode($cat) . "&value=" . urlencode($val);
                         ?>
-                        <a href="<?= $link ?>"
-                            class="grid-cell value-cell<?= $isDailyDouble ? ' hidden-daily-double-cell' : '' ?>">
+                        <a href="<?= $link ?>" class="grid-cell value-cell<?= $isDailyDouble ? ' hidden-daily-double-cell' : '' ?>">
                             <?= $val ?>
                         </a>
                     <?php endif; ?>
                 <?php endforeach; ?>
             <?php endforeach; ?>
-        </div> <div class="player-stack"> <div class="player-block <?= ($gameStarted && $currentTurn == 2) ? 'active-player' : '' ?>">
+        </div>
+        <div class="player-stack">
+            <div class="player-block <?= ($gameStarted && $currentTurn == 2) ? 'active-player' : '' ?>">
                 <div class="score-box">$<?= $playerScores[2] ?></div>
                 <div class="player-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
@@ -518,6 +526,8 @@ session_write_close();
                     <div class="turn-indicator">Your Turn</div>
                 <?php endif; ?>
             </div>
-        </div> </div>
+        </div>
+    </div>
 </body>
+
 </html>
