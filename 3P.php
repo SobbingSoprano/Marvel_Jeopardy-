@@ -332,6 +332,7 @@ session_write_close();
                     </div>
                     <div style="text-align:center; margin-top:2em;">
                         <button type="submit" name="all_guesses" class="cancel-btn">Submit All Guesses</button>
+                        <a href="index.html" class="cancel-btn" style="margin-top:1em;">Back to Homepage</a>
                     </div>
                 </form>
                 <?php if (!in_array(null, $guesses)): ?>
