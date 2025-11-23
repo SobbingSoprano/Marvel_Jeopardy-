@@ -139,6 +139,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['daily_double_player']);
             unset($_SESSION['daily_double_start_time']);
         }
+        // Redirect to Final Jeopardy if all 30 cells are used
+        if (count($_SESSION['used_cells']) >= 30) {
+            header('Location: final_jeopardy.php');
+            exit;
+        }
         header('Location: ' . $_SERVER['PHP_SELF'] . '?feedback=1');
         exit;
     }
