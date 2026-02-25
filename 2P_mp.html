@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvel Jeopardy! - 2 Players (Online)</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bungee&family=Monoton&family=Six+Caps&display=swap"
+        rel="stylesheet">
+
+    <!-- External Stylesheet -->
+    <link rel="stylesheet" href="marvel.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- Game Logic -->
+    <script src="firebase-config.js"></script>
+    <script src="questions.js"></script>
+    <script src="multiplayer.js"></script>
+</head>
+
+<body class="game-page">
+    <!-- CSS Preloader -->
+    <div class="preloader preloader-gamepage">
+        <div class="preloader-logo">
+            <span class="preloader-marvel">MARVEL</span>
+            <span class="preloader-jeopardy">Jeopardy!</span>
+        </div>
+        <div class="preloader-spinner"></div>
+    </div>
+
+    <!-- Title -->
+    <div class="title">
+        <a href="#" class="title-wrapper" id="resetLink">
+            <span class="title-marvel">MARVEL</span>
+            <span class="title-jeopardy">Jeopardy!</span>
+        </a>
+    </div>
+
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="connection-status">
+        <span class="status-dot connected"></span>
+        <span>Connected</span>
+    </div>
+
+    <!-- Audio Player -->
+    <audio class="audio-player game-audio" id="gameAudio" controls loop autoplay>
+        <source src="Assets/Sounds/krakoa match.wav" type="audio/wav">
+        Your browser does not support the audio element.
+    </audio>
+
+    <!-- Number Guessing Overlay -->
+    <div class="question-overlay" id="guessOverlay" style="display: none;">
+        <div class="question-card number-guess-card">
+            <h2 class="guess-title">Who Goes First?</h2>
+            <p class="guess-instructions">Pick a number between 1-50. Closest to the target wins!</p>
+            
+            <div id="guessSection">
+                <form id="guessForm" class="guess-form">
+                    <div class="player-guess-section">
+                        <h3 id="guessPlayerName">Your Name</h3>
+                        <label for="myGuess">Pick a number (1-50):</label>
+                        <input type="number" id="myGuess" min="1" max="50" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit Guess</button>
+                </form>
+            </div>
+
+            <div id="guessWaiting" style="display: none;">
+                <p>Your guess: <strong id="myGuessDisplay">--</strong></p>
+                <p>Waiting for other players...</p>
+                <div class="preloader-spinner" style="margin: 20px auto;"></div>
+            </div>
+
+            <div id="guessResults" style="display: none;" class="guess-results">
+                <h3>Results:</h3>
+                <div id="resultsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Not Your Turn Overlay -->
+    <div class="question-overlay" id="notYourTurnOverlay" style="display: none;">
+        <div class="question-card">
+            <h2 class="guess-title" id="waitingForPlayer">Waiting...</h2>
+            <p class="guess-instructions">It's not your turn. Watch the board!</p>
+            <div class="preloader-spinner" style="margin: 20px auto;"></div>
+        </div>
+    </div>
+
+    <!-- Daily Double Wager Overlay -->
+    <div class="question-overlay" id="ddWagerOverlay" style="display: none;">
+        <audio class="daily-double-audio" autoplay loop>
+            <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+        </audio>
+        <div class="question-card daily-double-card">
+            <div class="daily-double-header">
+                <h1 class="daily-double-title">DAILY DOUBLE!</h1>
+                <p class="daily-double-subtitle" id="ddWagerPlayer"></p>
+            </div>
+            <div class="wager-info">
+                <p><strong>Current Score:</strong> $<span id="ddCurrentScore">0</span></p>
+                <p><strong>Maximum Wager:</strong> $<span id="ddMaxWager">0</span></p>
+            </div>
+            <form id="wagerForm" class="wager-form">
+                <label for="wagerInput">Enter wager:</label>
+                <input type="number" id="wagerInput" min="5" required autofocus>
+                <button type="submit" class="submit-btn">Lock In Wager</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Daily Double / Question Overlay (Watching) -->
+    <div class="question-overlay" id="watchQuestionOverlay" style="display: none;">
+        <div class="question-card">
+            <div class="question-header">
+                <span class="question-category" id="watchQCategory"></span>
+                <span class="question-value" id="watchQValue"></span>
+            </div>
+            <div class="player-indicator" id="watchQPlayer"></div>
+            <div class="question-text" id="watchQText"></div>
+            <p class="guess-instructions">Waiting for answer...</p>
+            <div class="preloader-spinner" style="margin: 20px auto;"></div>
+        </div>
+    </div>
+
+    <!-- Question Overlay (Your Turn) -->
+    <div class="question-overlay" id="questionOverlay" style="display: none;">
+        <div class="question-card">
+            <div class="question-header">
+                <span class="question-category" id="qCategory"></span>
+                <span class="question-value" id="qValue"></span>
+            </div>
+            <div class="player-indicator" id="qPlayerIndicator"></div>
+            <div class="question-text" id="qText"></div>
+            <form id="answerForm" class="question-form">
+                <label for="answerInput" class="question-label">Your answer:</label>
+                <input type="text" id="answerInput" class="question-input" autofocus required>
+                <div class="question-buttons">
+                    <button type="submit" class="submit-btn">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback Overlay -->
+    <div class="question-overlay" id="feedbackOverlay" style="display: none;">
+        <div class="question-card">
+            <h2 id="feedbackTitle"></h2>
+            <p id="feedbackPlayer"></p>
+            <p id="feedbackText"></p>
+            <a href="#" class="submit-btn" id="feedbackClose">Continue</a>
+        </div>
+    </div>
+
+    <!-- Main Game Content -->
+    <div class="jeopardy-flex-row" id="gameContent">
+        <!-- Player 1 -->
+        <div class="player-block" id="player1Block">
+            <div class="score-box" id="player1Score">$0</div>
+            <div class="player-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
+                </svg>
+            </div>
+            <div class="player-label" id="player1Name">Player 1</div>
+            <div class="turn-indicator" id="player1Turn" style="display: none;">Their Turn</div>
+            <div class="you-indicator" id="player1You" style="display: none;">(You)</div>
+        </div>
+
+        <!-- Jeopardy Grid -->
+        <div class="jeopardy-grid" id="jeopardyGrid"></div>
+
+        <!-- Player 2 -->
+        <div class="player-block" id="player2Block">
+            <div class="score-box" id="player2Score">$0</div>
+            <div class="player-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
+                </svg>
+            </div>
+            <div class="player-label" id="player2Name">Player 2</div>
+            <div class="turn-indicator" id="player2Turn" style="display: none;">Their Turn</div>
+            <div class="you-indicator" id="player2You" style="display: none;">(You)</div>
+        </div>
+    </div>
+
+    <script>
+        const NUM_PLAYERS = 2;
+        let gameState = null;
+        let myPlayerNumber = null;
+        let isMyTurn = false;
+        let currentQuestion = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check for existing session
+            const roomCode = sessionStorage.getItem('mp_roomCode');
+            if (!roomCode) {
+                window.location.href = 'lobby.html';
+                return;
+            }
+
+            // Initialize multiplayer
+            const success = await MultiplayerManager.rejoinRoom();
+            if (!success) {
+                alert('Could not rejoin room. Returning to lobby.');
+                window.location.href = 'lobby.html';
+                return;
+            }
+
+            myPlayerNumber = MultiplayerManager.playerNumber;
+
+            // Set up state change callback
+            MultiplayerManager.onStateChange = onGameStateChange;
+            MultiplayerManager.onError = showError;
+
+            // Mark which player is "you"
+            document.getElementById(`player${myPlayerNumber}You`).style.display = 'block';
+        });
+
+        // Handle game state changes from Firebase
+        function onGameStateChange(newState) {
+            gameState = newState;
+            
+            // Check for final jeopardy redirect
+            if (gameState.stage === 'final_jeopardy') {
+                window.location.href = 'final_jeopardy_mp.html';
+                return;
+            }
+
+            isMyTurn = gameState.currentTurn === myPlayerNumber;
+
+            // Update UI
+            updatePlayerDisplay();
+            updateGrid();
+            handleCurrentState();
+        }
+
+        // Update player names and scores
+        function updatePlayerDisplay() {
+            for (let i = 1; i <= NUM_PLAYERS; i++) {
+                document.getElementById(`player${i}Name`).textContent = gameState.playerNames[i] || `Player ${i}`;
+                document.getElementById(`player${i}Score`).textContent = `$${gameState.playerScores[i] || 0}`;
+                
+                const turnEl = document.getElementById(`player${i}Turn`);
+                const blockEl = document.getElementById(`player${i}Block`);
+                
+                if (gameState.gameStarted && gameState.currentTurn === i) {
+                    turnEl.style.display = 'block';
+                    turnEl.textContent = i === myPlayerNumber ? 'Your Turn' : 'Their Turn';
+                    blockEl.classList.add('active-player');
+                } else {
+                    turnEl.style.display = 'none';
+                    blockEl.classList.remove('active-player');
+                }
+            }
+
+            // Update guess form player name
+            document.getElementById('guessPlayerName').textContent = gameState.playerNames[myPlayerNumber];
+        }
+
+        // Update the grid
+        function updateGrid() {
+            const grid = document.getElementById('jeopardyGrid');
+            grid.innerHTML = '';
+            
+            // Category row
+            categories.forEach(cat => {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell category-cell';
+                cell.textContent = cat;
+                grid.appendChild(cell);
+            });
+            
+            // Value rows
+            const usedCells = gameState.usedCells || [];
+            
+            values.forEach(val => {
+                categories.forEach(cat => {
+                    const cellKey = `${cat}|${val}`;
+                    const isUsed = usedCells.includes(cellKey);
+                    const isDailyDouble = gameState.dailyDouble === cellKey;
+                    
+                    if (isUsed) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell value-cell used-cell';
+                        cell.textContent = val;
+                        grid.appendChild(cell);
+                    } else {
+                        const cell = document.createElement('a');
+                        cell.href = '#';
+                        cell.className = 'grid-cell value-cell';
+                        if (isDailyDouble) cell.classList.add('hidden-daily-double-cell');
+                        cell.textContent = val;
+                        cell.onclick = (e) => {
+                            e.preventDefault();
+                            if (isMyTurn && !gameState.currentQuestion) {
+                                selectCell(cat, val, isDailyDouble);
+                            }
+                        };
+                        
+                        // Disable if not my turn
+                        if (!isMyTurn) {
+                            cell.classList.add('disabled-cell');
+                        }
+                        
+                        grid.appendChild(cell);
+                    }
+                });
+            });
+        }
+
+        // Handle current game state
+        function handleCurrentState() {
+            hideAllOverlays();
+
+            // Not started - show guessing
+            if (!gameState.gameStarted) {
+                showGuessOverlay();
+                return;
+            }
+
+            // Show feedback if present
+            if (gameState.feedback) {
+                showFeedback(gameState.feedback);
+                return;
+            }
+
+            // Current question active
+            if (gameState.currentQuestion) {
+                handleCurrentQuestion();
+                return;
+            }
+        }
+
+        // Show guess overlay
+        function showGuessOverlay() {
+            document.getElementById('guessOverlay').style.display = 'flex';
+            
+            // Check if I already guessed
+            const myGuess = gameState.guesses?.[myPlayerNumber];
+            
+            if (myGuess !== undefined && myGuess !== null) {
+                document.getElementById('guessSection').style.display = 'none';
+                document.getElementById('guessWaiting').style.display = 'block';
+                document.getElementById('myGuessDisplay').textContent = myGuess;
+                
+                // Check if all guesses are in
+                let allGuessed = true;
+                for (let i = 1; i <= NUM_PLAYERS; i++) {
+                    if (gameState.guesses?.[i] === undefined || gameState.guesses?.[i] === null) {
+                        allGuessed = false;
+                        break;
+                    }
+                }
+                
+                if (allGuessed) {
+                    showGuessResults();
+                }
+            } else {
+                document.getElementById('guessSection').style.display = 'block';
+                document.getElementById('guessWaiting').style.display = 'none';
+            }
+        }
+
+        // Show guess results
+        function showGuessResults() {
+            document.getElementById('guessWaiting').style.display = 'none';
+            document.getElementById('guessResults').style.display = 'block';
+            
+            const resultsContent = document.getElementById('resultsContent');
+            resultsContent.innerHTML = `<p>Target Number: <strong>${gameState.targetNumber}</strong></p>`;
+            
+            for (let i = 1; i <= NUM_PLAYERS; i++) {
+                const guess = gameState.guesses[i];
+                const diff = Math.abs(gameState.targetNumber - guess);
+                resultsContent.innerHTML += `
+                    <p>${gameState.playerNames[i]} guessed: <strong>${guess}</strong> (off by ${diff})</p>
+                `;
+            }
+            
+            // If host, show start button
+            if (MultiplayerManager.isHost) {
+                resultsContent.innerHTML += `
+                    <button class="submit-btn" onclick="startGame()" style="margin-top: 20px;">Start Game</button>
+                `;
+            } else {
+                resultsContent.innerHTML += `
+                    <p style="margin-top: 20px;">Waiting for host to start...</p>
+                `;
+            }
+        }
+
+        // Handle current question
+        function handleCurrentQuestion() {
+            const q = gameState.currentQuestion;
+            
+            if (isMyTurn) {
+                // It's my turn to answer
+                if (q.isDailyDouble && !gameState.dailyDoubleWager) {
+                    showDailyDoubleWager(q);
+                } else {
+                    showQuestionForm(q);
+                }
+            } else {
+                // Watching another player
+                showWatchingQuestion(q);
+            }
+        }
+
+        // Show daily double wager
+        function showDailyDoubleWager(q) {
+            document.getElementById('ddWagerOverlay').style.display = 'flex';
+            document.getElementById('gameAudio').pause();
+            
+            const myScore = gameState.playerScores[myPlayerNumber] || 0;
+            const cardValue = parseInt(q.value.replace('$', ''));
+            const maxWager = Math.max(myScore, cardValue);
+            
+            document.getElementById('ddWagerPlayer').textContent = 'How much do you want to wager?';
+            document.getElementById('ddCurrentScore').textContent = myScore;
+            document.getElementById('ddMaxWager').textContent = maxWager;
+            document.getElementById('wagerInput').max = maxWager;
+            document.getElementById('wagerInput').value = maxWager;
+        }
+
+        // Show question form
+        function showQuestionForm(q) {
+            document.getElementById('questionOverlay').style.display = 'flex';
+            
+            document.getElementById('qCategory').textContent = q.category;
+            document.getElementById('qValue').textContent = q.isDailyDouble ? 
+                `DAILY DOUBLE ($${gameState.dailyDoubleWager})` : q.value;
+            document.getElementById('qPlayerIndicator').textContent = 'Your turn to answer!';
+            document.getElementById('qText').textContent = q.questionText;
+            
+            document.getElementById('answerInput').focus();
+        }
+
+        // Show watching question
+        function showWatchingQuestion(q) {
+            document.getElementById('watchQuestionOverlay').style.display = 'flex';
+            
+            document.getElementById('watchQCategory').textContent = q.category;
+            document.getElementById('watchQValue').textContent = q.isDailyDouble ? 'DAILY DOUBLE' : q.value;
+            document.getElementById('watchQPlayer').textContent = 
+                `${gameState.playerNames[gameState.currentTurn]} is answering...`;
+            document.getElementById('watchQText').textContent = q.questionText;
+        }
+
+        // Show feedback
+        function showFeedback(feedback) {
+            document.getElementById('feedbackOverlay').style.display = 'flex';
+            
+            document.getElementById('feedbackTitle').textContent = feedback.isCorrect ? 'Correct!' : 'Incorrect!';
+            document.getElementById('feedbackTitle').style.color = feedback.isCorrect ? '#00ff00' : '#ff0000';
+            document.getElementById('feedbackPlayer').textContent = 
+                `${gameState.playerNames[feedback.player]} answered: "${feedback.userAnswer}"`;
+            
+            let feedbackText = feedback.isCorrect 
+                ? `+$${feedback.points}` 
+                : `-$${feedback.points}<br>Correct answer: ${feedback.correctAnswer}`;
+            document.getElementById('feedbackText').innerHTML = feedbackText;
+        }
+
+        // Select a cell
+        async function selectCell(category, value, isDailyDouble) {
+            await MultiplayerManager.selectCell(category, value, isDailyDouble);
+        }
+
+        // Submit guess
+        document.getElementById('guessForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const guess = parseInt(document.getElementById('myGuess').value);
+            if (guess >= 1 && guess <= 50) {
+                await MultiplayerManager.submitGuess(myPlayerNumber, guess);
+            }
+        });
+
+        // Submit wager
+        document.getElementById('wagerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const wager = parseInt(document.getElementById('wagerInput').value);
+            await MultiplayerManager.submitDDWager(wager);
+        });
+
+        // Submit answer
+        document.getElementById('answerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const answer = document.getElementById('answerInput').value.trim();
+            const q = gameState.currentQuestion;
+            
+            const isCorrect = allQuestions[q.category][q.value].answer
+                .some(a => answer.toLowerCase() === a.toLowerCase());
+            
+            const points = q.isDailyDouble ? gameState.dailyDoubleWager : parseInt(q.value.replace('$', ''));
+            
+            await MultiplayerManager.submitAnswer(answer, isCorrect, points);
+            
+            document.getElementById('answerInput').value = '';
+        });
+
+        // Feedback close
+        document.getElementById('feedbackClose').addEventListener('click', async function(e) {
+            e.preventDefault();
+            await MultiplayerManager.clearFeedback();
+            document.getElementById('gameAudio').play();
+        });
+
+        // Start game (host only)
+        async function startGame() {
+            await MultiplayerManager.startGame();
+        }
+
+        // Leave game
+        document.getElementById('resetLink').addEventListener('click', async function(e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to leave the game?')) {
+                await MultiplayerManager.leaveRoom();
+                window.location.href = 'lobby.html';
+            }
+        });
+
+        // Hide all overlays
+        function hideAllOverlays() {
+            document.getElementById('guessOverlay').style.display = 'none';
+            document.getElementById('notYourTurnOverlay').style.display = 'none';
+            document.getElementById('ddWagerOverlay').style.display = 'none';
+            document.getElementById('watchQuestionOverlay').style.display = 'none';
+            document.getElementById('questionOverlay').style.display = 'none';
+            document.getElementById('feedbackOverlay').style.display = 'none';
+        }
+
+        // Show error
+        function showError(message) {
+            alert(message);
+        }
+    </script>
+
+    <style>
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            z-index: 1000;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-dot.connected {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .you-indicator {
+            font-size: 0.8em;
+            color: #00ff00;
+            margin-top: 5px;
+        }
+
+        .disabled-cell {
+            opacity: 0.6;
+            cursor: not-allowed !important;
+        }
+
+        .disabled-cell:hover {
+            transform: none !important;
+        }
+    </style>
+</body>
+
+</html>

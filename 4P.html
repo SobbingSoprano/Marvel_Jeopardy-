@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvel Jeopardy! - 4 Players</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bungee&family=Monoton&family=Six+Caps&display=swap"
+        rel="stylesheet">
+
+    <!-- External Stylesheet -->
+    <link rel="stylesheet" href="marvel.css">
+    
+    <!-- Game Logic -->
+    <script src="questions.js"></script>
+</head>
+
+<body class="game-page">
+    <!-- CSS Preloader -->
+    <div class="preloader preloader-gamepage">
+        <div class="preloader-logo">
+            <span class="preloader-marvel">MARVEL</span>
+            <span class="preloader-jeopardy">Jeopardy!</span>
+        </div>
+        <div class="preloader-spinner"></div>
+    </div>
+
+    <!-- Title -->
+    <div class="title">
+        <a href="#" class="title-wrapper" id="resetLink">
+            <span class="title-marvel">MARVEL</span>
+            <span class="title-jeopardy">Jeopardy!</span>
+        </a>
+    </div>
+
+    <!-- Audio Player -->
+    <audio class="audio-player game-audio" id="gameAudio" controls loop autoplay>
+        <source src="Assets/Sounds/krakoa match.wav" type="audio/wav">
+        Your browser does not support the audio element.
+    </audio>
+
+    <!-- Number Guessing Overlay -->
+    <div class="question-overlay" id="guessOverlay" style="display: none;">
+        <div class="question-card number-guess-card">
+            <h2 class="guess-title">Who Goes First?</h2>
+            <p class="guess-instructions">Each player picks a number between 1-50. Closest to the target wins!</p>
+            <form id="guessForm" class="guess-form" style="width:100%;">
+                <div class="guess-container" id="guessFields"></div>
+                <div style="text-align:center; margin-top:2em;">
+                    <button type="submit" class="cancel-btn">Submit All Guesses</button>
+                </div>
+            </form>
+            <div id="guessResults" style="display: none;" class="guess-results">
+                <h3>Results:</h3>
+                <div id="resultsContent"></div>
+                <a href="#" class="submit-btn" id="startGameBtn">Start Game</a>
+                <a href="index.html" class="cancel-btn" style="margin-top:1em;">Back to Homepage</a>
+            </div>
+            <div id="backToHome" style="text-align:center; margin-top:2em;">
+                <a href="index.html" class="cancel-btn">Back to Homepage</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Double Wager Overlay -->
+    <div class="question-overlay" id="ddWagerOverlay" style="display: none;">
+        <audio class="daily-double-audio" autoplay loop>
+            <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+        </audio>
+        <div class="question-card daily-double-card">
+            <div class="daily-double-header">
+                <h1 class="daily-double-title">DAILY DOUBLE!</h1>
+                <p class="daily-double-subtitle" id="ddWagerPlayer"></p>
+            </div>
+            <div class="wager-info">
+                <p><strong>Your Current Score:</strong> $<span id="ddCurrentScore">0</span></p>
+                <p><strong>Maximum Wager:</strong> $<span id="ddMaxWager">0</span></p>
+            </div>
+            <form id="wagerForm" class="wager-form">
+                <input type="hidden" id="ddCategory">
+                <input type="hidden" id="ddValue">
+                <label for="wagerInput">Enter your wager:</label>
+                <input type="number" id="wagerInput" min="5" required autofocus>
+                <button type="submit" class="submit-btn">Lock In Wager</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Daily Double Question Overlay -->
+    <div class="question-overlay" id="ddQuestionOverlay" style="display: none;">
+        <audio class="daily-double-audio" autoplay loop>
+            <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+        </audio>
+        <div class="question-card daily-double-question-card">
+            <div class="question-header">
+                <span class="question-category" id="ddQCategory"></span>
+                <span class="question-value">DAILY DOUBLE</span>
+            </div>
+            <div class="player-indicator" id="ddQPlayer"></div>
+            <div class="question-text" id="ddQText"></div>
+            <form id="ddAnswerForm" class="answer-form">
+                <label for="ddAnswer">Your Answer:</label>
+                <input type="text" id="ddAnswer" class="question-input" placeholder="Type your answer..." required autofocus>
+                <div class="question-buttons">
+                    <button type="submit" class="submit-btn">Submit Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Question Overlay -->
+    <div class="question-overlay" id="questionOverlay" style="display: none;">
+        <div class="question-card">
+            <div class="question-header">
+                <span class="question-category" id="qCategory"></span>
+                <span class="question-value" id="qValue"></span>
+            </div>
+            <div class="player-indicator" id="qPlayerIndicator"></div>
+            <div class="question-text" id="qText"></div>
+            <form id="answerForm" class="question-form">
+                <label for="answerInput" class="question-label">Enter your answer:</label>
+                <input type="text" id="answerInput" class="question-input" autofocus required>
+                <div class="question-buttons">
+                    <button type="submit" class="submit-btn">Submit</button>
+                    <a href="#" class="cancel-btn" id="cancelAnswer">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback Overlay -->
+    <div class="question-overlay" id="feedbackOverlay" style="display: none;">
+        <div class="question-card">
+            <h2 id="feedbackTitle"></h2>
+            <p id="feedbackText"></p>
+            <a href="#" class="submit-btn" id="feedbackClose">Continue</a>
+        </div>
+    </div>
+
+    <!-- Main Game Content -->
+    <div class="jeopardy-flex-row" id="gameContent">
+        <!-- Player 1 -->
+        <div class="player-block" id="player1Block">
+            <div class="score-box" id="player1Score">$0</div>
+            <div class="player-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
+                </svg>
+            </div>
+            <div class="player-label" id="player1Name">Player 1</div>
+            <div class="turn-indicator" id="player1Turn" style="display: none;">Your Turn</div>
+        </div>
+
+        <!-- Jeopardy Grid -->
+        <div class="jeopardy-grid" id="jeopardyGrid"></div>
+
+        <!-- Player 2 -->
+        <div class="player-block" id="player2Block">
+            <div class="score-box" id="player2Score">$0</div>
+            <div class="player-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
+                </svg>
+            </div>
+            <div class="player-label" id="player2Name">Player 2</div>
+            <div class="turn-indicator" id="player2Turn" style="display: none;">Your Turn</div>
+        </div>
+    </div>
+
+    <!-- Players 3 & 4 (below grid) -->
+    <div class="player-row-bottom" id="playerRowBottom">
+        <div class="player-block" id="player3Block">
+            <div class="score-box" id="player3Score">$0</div>
+            <div class="player-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
+                </svg>
+            </div>
+            <div class="player-label" id="player3Name">Player 3</div>
+            <div class="turn-indicator" id="player3Turn" style="display: none;">Your Turn</div>
+        </div>
+        <div class="player-block" id="player4Block">
+            <div class="score-box" id="player4Score">$0</div>
+            <div class="player-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12" />
+                    <rect x="8" y="32" width="32" height="12" rx="6" />
+                </svg>
+            </div>
+            <div class="player-label" id="player4Name">Player 4</div>
+            <div class="turn-indicator" id="player4Turn" style="display: none;">Your Turn</div>
+        </div>
+    </div>
+
+    <script>
+        const NUM_PLAYERS = 4;
+        let currentQuestion = { category: '', value: '', isDailyDouble: false };
+        let ddWager = 0;
+
+        // Check if game state exists
+        let state = GameState.load();
+        if (!state || state.playerCount !== NUM_PLAYERS) {
+            state = GameState.init(NUM_PLAYERS);
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            renderPage();
+        });
+
+        function renderPage() {
+            state = GameState.load();
+            
+            // Update player names and scores
+            for (let i = 1; i <= NUM_PLAYERS; i++) {
+                document.getElementById(`player${i}Name`).textContent = state.playerNames[i];
+                document.getElementById(`player${i}Score`).textContent = `$${state.playerScores[i]}`;
+            }
+            
+            // Update turn indicators
+            updateTurnIndicators();
+            
+            // Build grid
+            buildGrid();
+            
+            // Show appropriate overlay
+            if (!state.gameStarted) {
+                showGuessOverlay();
+            }
+            
+            // Check for game over
+            if (state.usedCells.length >= 30) {
+                window.location.href = 'final_jeopardy.html';
+            }
+        }
+
+        function updateTurnIndicators() {
+            for (let i = 1; i <= NUM_PLAYERS; i++) {
+                const turnEl = document.getElementById(`player${i}Turn`);
+                const blockEl = document.getElementById(`player${i}Block`);
+                if (state.gameStarted && state.currentTurn === i) {
+                    turnEl.style.display = 'block';
+                    blockEl.classList.add('active-player');
+                } else {
+                    turnEl.style.display = 'none';
+                    blockEl.classList.remove('active-player');
+                }
+            }
+        }
+
+        function buildGrid() {
+            const grid = document.getElementById('jeopardyGrid');
+            grid.innerHTML = '';
+            
+            // Category row
+            categories.forEach(cat => {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell category-cell';
+                cell.textContent = cat;
+                grid.appendChild(cell);
+            });
+            
+            // Value rows
+            values.forEach(val => {
+                categories.forEach(cat => {
+                    const cellKey = `${cat}|${val}`;
+                    const isUsed = state.usedCells.includes(cellKey);
+                    const isDailyDouble = state.dailyDouble === cellKey;
+                    
+                    if (isUsed) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell value-cell used-cell';
+                        cell.textContent = val;
+                        grid.appendChild(cell);
+                    } else {
+                        const cell = document.createElement('a');
+                        cell.href = '#';
+                        cell.className = 'grid-cell value-cell' + (isDailyDouble ? ' hidden-daily-double-cell' : '');
+                        cell.textContent = val;
+                        cell.onclick = (e) => {
+                            e.preventDefault();
+                            handleCellClick(cat, val, isDailyDouble);
+                        };
+                        grid.appendChild(cell);
+                    }
+                });
+            });
+        }
+
+        function showGuessOverlay() {
+            const overlay = document.getElementById('guessOverlay');
+            const fieldsContainer = document.getElementById('guessFields');
+            fieldsContainer.innerHTML = '';
+            
+            for (let i = 1; i <= NUM_PLAYERS; i++) {
+                const section = document.createElement('div');
+                section.className = 'player-guess-section';
+                section.innerHTML = `
+                    <h3>${state.playerNames[i]}</h3>
+                    <label for="guess${i}">Pick a number (1-50):</label>
+                    <input type="number" id="guess${i}" name="guess${i}" min="1" max="50" required>
+                `;
+                fieldsContainer.appendChild(section);
+            }
+            
+            overlay.style.display = 'flex';
+        }
+
+        // Guess form submission
+        document.getElementById('guessForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const guesses = {};
+            let allValid = true;
+            
+            for (let i = 1; i <= NUM_PLAYERS; i++) {
+                const guess = parseInt(document.getElementById(`guess${i}`).value);
+                if (isNaN(guess) || guess < 1 || guess > 50) {
+                    allValid = false;
+                    break;
+                }
+                guesses[i] = guess;
+            }
+            
+            if (allValid) {
+                state = GameState.submitGuesses(guesses);
+                
+                // Show results
+                const resultsContent = document.getElementById('resultsContent');
+                resultsContent.innerHTML = `<p>Target Number: <strong>${state.targetNumber}</strong></p>`;
+                
+                for (let i = 1; i <= NUM_PLAYERS; i++) {
+                    const diff = Math.abs(state.targetNumber - state.guesses[i]);
+                    resultsContent.innerHTML += `
+                        <p>${state.playerNames[i]} guessed: <strong>${state.guesses[i]}</strong> (off by ${diff})</p>
+                    `;
+                }
+                
+                resultsContent.innerHTML += `
+                    <p class="winner-announce">${state.playerNames[state.currentTurn]} goes first!</p>
+                `;
+                
+                document.getElementById('guessResults').style.display = 'block';
+                document.getElementById('guessForm').style.display = 'none';
+                document.getElementById('backToHome').style.display = 'none';
+            }
+        });
+
+        // Start game button
+        document.getElementById('startGameBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('guessOverlay').style.display = 'none';
+            renderPage();
+        });
+
+        function handleCellClick(category, value, isDailyDouble) {
+            currentQuestion = { category, value, isDailyDouble };
+            
+            if (isDailyDouble) {
+                showDailyDoubleWager(category, value);
+            } else {
+                showQuestion(category, value);
+            }
+        }
+
+        function showDailyDoubleWager(category, value) {
+            const overlay = document.getElementById('ddWagerOverlay');
+            const currentScore = state.playerScores[state.currentTurn];
+            const cardValue = parseInt(value.replace('$', ''));
+            const maxWager = Math.max(currentScore, cardValue);
+            
+            document.getElementById('ddWagerPlayer').textContent = 
+                `${state.playerNames[state.currentTurn]}, how much do you want to wager?`;
+            document.getElementById('ddCurrentScore').textContent = currentScore;
+            document.getElementById('ddMaxWager').textContent = maxWager;
+            document.getElementById('wagerInput').max = maxWager;
+            document.getElementById('wagerInput').value = maxWager;
+            document.getElementById('ddCategory').value = category;
+            document.getElementById('ddValue').value = value;
+            
+            // Pause game audio
+            document.getElementById('gameAudio').pause();
+            
+            overlay.style.display = 'flex';
+        }
+
+        // Wager form submission
+        document.getElementById('wagerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            ddWager = parseInt(document.getElementById('wagerInput').value);
+            const category = document.getElementById('ddCategory').value;
+            const value = document.getElementById('ddValue').value;
+            
+            document.getElementById('ddWagerOverlay').style.display = 'none';
+            showDailyDoubleQuestion(category, value);
+        });
+
+        function showDailyDoubleQuestion(category, value) {
+            const overlay = document.getElementById('ddQuestionOverlay');
+            
+            document.getElementById('ddQCategory').textContent = category;
+            document.getElementById('ddQPlayer').textContent = 
+                `${state.playerNames[state.currentTurn]} - Wager: $${ddWager}`;
+            document.getElementById('ddQText').textContent = GameState.getQuestion(category, value);
+            
+            overlay.style.display = 'flex';
+            document.getElementById('ddAnswer').focus();
+        }
+
+        // Daily Double answer submission
+        document.getElementById('ddAnswerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const answer = document.getElementById('ddAnswer').value;
+            const isCorrect = GameState.checkAnswer(currentQuestion.category, currentQuestion.value, answer);
+            
+            // Update score
+            if (isCorrect) {
+                GameState.updateScore(state.currentTurn, ddWager);
+            } else {
+                GameState.updateScore(state.currentTurn, -ddWager);
+            }
+            
+            // Mark cell as used
+            GameState.markCellUsed(`${currentQuestion.category}|${currentQuestion.value}`);
+            
+            // Switch turn
+            GameState.nextTurn();
+            
+            // Show feedback
+            document.getElementById('ddQuestionOverlay').style.display = 'none';
+            showFeedback(isCorrect, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), answer, ddWager);
+            
+            // Clear form
+            document.getElementById('ddAnswer').value = '';
+        });
+
+        function showQuestion(category, value) {
+            const overlay = document.getElementById('questionOverlay');
+            
+            document.getElementById('qCategory').textContent = category;
+            document.getElementById('qValue').textContent = value;
+            document.getElementById('qPlayerIndicator').textContent = 
+                `${state.playerNames[state.currentTurn]} is answering...`;
+            document.getElementById('qText').textContent = GameState.getQuestion(category, value);
+            
+            overlay.style.display = 'flex';
+            document.getElementById('answerInput').focus();
+        }
+
+        // Answer form submission
+        document.getElementById('answerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const answer = document.getElementById('answerInput').value;
+            const isCorrect = GameState.checkAnswer(currentQuestion.category, currentQuestion.value, answer);
+            const pointValue = parseInt(currentQuestion.value.replace('$', ''));
+            
+            // Update score
+            if (isCorrect) {
+                GameState.updateScore(state.currentTurn, pointValue);
+            } else {
+                GameState.updateScore(state.currentTurn, -pointValue);
+            }
+            
+            // Mark cell as used
+            GameState.markCellUsed(`${currentQuestion.category}|${currentQuestion.value}`);
+            
+            // Switch turn
+            GameState.nextTurn();
+            
+            // Show feedback
+            document.getElementById('questionOverlay').style.display = 'none';
+            showFeedback(isCorrect, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), answer, pointValue);
+            
+            // Clear form
+            document.getElementById('answerInput').value = '';
+        });
+
+        // Cancel button
+        document.getElementById('cancelAnswer').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('questionOverlay').style.display = 'none';
+        });
+
+        function showFeedback(isCorrect, correctAnswer, userAnswer, points) {
+            const overlay = document.getElementById('feedbackOverlay');
+            
+            document.getElementById('feedbackTitle').textContent = isCorrect ? 'Correct!' : 'Incorrect!';
+            document.getElementById('feedbackTitle').style.color = isCorrect ? '#00ff00' : '#ff0000';
+            
+            let feedbackText = isCorrect 
+                ? `+$${points}` 
+                : `-$${points}<br>Correct answer: ${correctAnswer}`;
+            document.getElementById('feedbackText').innerHTML = feedbackText;
+            
+            overlay.style.display = 'flex';
+        }
+
+        // Feedback close button
+        document.getElementById('feedbackClose').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('feedbackOverlay').style.display = 'none';
+            
+            // Resume game audio
+            document.getElementById('gameAudio').play();
+            
+            // Check for game over
+            state = GameState.load();
+            if (state.usedCells.length >= 30) {
+                window.location.href = 'final_jeopardy.html';
+            } else {
+                renderPage();
+            }
+        });
+
+        // Reset link
+        document.getElementById('resetLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to reset the game?')) {
+                GameState.clear();
+                window.location.href = '4P.html';
+            }
+        });
+    </script>
+</body>
+
+</html>

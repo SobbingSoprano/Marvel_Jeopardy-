@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter Player Names</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bungee&family=Monoton&family=Six+Caps&display=swap"
+        rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="marvel.css">
+    
+    <!-- Game Logic -->
+    <script src="questions.js"></script>
+</head>
+
+<body class="game-page">
+
+    <!-- Title -->
+    <div class="title">
+        <div class="title-wrapper">
+            <span class="title-marvel">MARVEL</span>
+            <span class="title-jeopardy">Jeopardy!</span>
+        </div>
+    </div>
+
+    <div class="name-entry-container">
+        <div class="name-entry-card">
+            <h2 class="name-entry-title">Enter Player Names</h2>
+            <p class="name-entry-sub" id="mode-display">Mode: 2 Players</p>
+
+            <form id="nameForm" class="name-form">
+                <div id="name-fields"></div>
+                <button type="submit" class="submit-btn start-btn">
+                    Start Game
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <script>
+        // Get player count from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        let playerCount = parseInt(urlParams.get('players')) || 2;
+        
+        // Validate player count
+        if (playerCount < 2 || playerCount > 4) {
+            window.location.href = 'index.html';
+        }
+        
+        // Update mode display
+        document.getElementById('mode-display').textContent = 
+            `Mode: ${playerCount} Player${playerCount > 1 ? 's' : ''}`;
+        
+        // Generate name input fields
+        const nameFieldsContainer = document.getElementById('name-fields');
+        for (let i = 1; i <= playerCount; i++) {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'name-field';
+            fieldDiv.innerHTML = `
+                <label for="player${i}_name">Player ${i} Name:</label>
+                <input type="text" 
+                       id="player${i}_name" 
+                       name="player${i}_name" 
+                       placeholder="Enter name..." 
+                       required>
+            `;
+            nameFieldsContainer.appendChild(fieldDiv);
+        }
+        
+        // Handle form submission
+        document.getElementById('nameForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Initialize game state
+            GameState.init(playerCount);
+            
+            // Collect names
+            const names = {};
+            for (let i = 1; i <= playerCount; i++) {
+                const input = document.getElementById(`player${i}_name`);
+                names[i] = input.value.trim() || `Player ${i}`;
+            }
+            
+            // Save names to game state
+            GameState.setPlayerNames(names);
+            
+            // Redirect to appropriate game page
+            window.location.href = `${playerCount}P.html`;
+        });
+    </script>
+
+</body>
+
+</html>

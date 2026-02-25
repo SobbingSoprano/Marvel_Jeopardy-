@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Jeopardy!</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bungee&family=Monoton&family=Six+Caps&display=swap"
+        rel="stylesheet">
+    
+    <link rel="stylesheet" href="marvel.css">
+    
+    <!-- Game Logic -->
+    <script src="questions.js"></script>
+</head>
+
+<body class="game-page">
+
+<div class="title">
+    <span class="title-marvel">MARVEL</span>
+    <span class="title-jeopardy">Jeopardy!</span>
+</div>
+
+<!-- WAGER SCREEN -->
+<div class="question-overlay" id="wagerScreen" style="display: none;">
+    <div class="question-card">
+        <h2 class="guess-title">FINAL JEOPARDY WAGER</h2>
+        <p class="guess-instructions">How much will each player wager?</p>
+
+        <form id="wagerForm" class="question-form">
+            <div id="wagerFields"></div>
+            <button type="submit" class="submit-btn">Submit Wagers</button>
+        </form>
+    </div>
+</div>
+
+<!-- QUESTION SCREEN -->
+<div class="question-overlay" id="questionScreen" style="display: none;">
+    <div class="question-card">
+        <h2 class="guess-title">FINAL JEOPARDY QUESTION</h2>
+
+        <div class="question-text" id="finalQuestionText"></div>
+
+        <form id="answerForm" class="question-form">
+            <div id="answerFields"></div>
+            <button type="submit" class="submit-btn">Submit Answers</button>
+        </form>
+    </div>
+</div>
+
+<!-- RESULTS SCREEN -->
+<div class="question-overlay" id="resultsScreen" style="display: none;">
+    <div class="question-card">
+        <h2 class="guess-title">Final Results</h2>
+        
+        <div id="resultsContent"></div>
+
+        <h2 class="guess-title">Winner:</h2>
+        <div class="question-text" id="winnerDisplay" style="font-size: 2em; color: #00ff00;"></div>
+
+        <a href="index.html" class="submit-btn" id="returnBtn" style="margin-top: 20px;">Return to Main Menu</a>
+    </div>
+</div>
+
+<script>
+    // Check if game state exists
+    let gameState = GameState.load();
+    if (!gameState || !gameState.playerNames || !gameState.playerScores) {
+        window.location.href = 'index.html';
+    }
+
+    // Initialize final jeopardy state
+    let fjState = FinalJeopardy.load();
+    if (!fjState) {
+        fjState = FinalJeopardy.init();
+    }
+
+    const playerCount = gameState.playerCount;
+    const playerNames = gameState.playerNames;
+    const playerScores = gameState.playerScores;
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+        renderStage();
+    });
+
+    function renderStage() {
+        fjState = FinalJeopardy.load();
+        
+        // Hide all screens
+        document.getElementById('wagerScreen').style.display = 'none';
+        document.getElementById('questionScreen').style.display = 'none';
+        document.getElementById('resultsScreen').style.display = 'none';
+
+        if (fjState.stage === 'wager') {
+            showWagerScreen();
+        } else if (fjState.stage === 'question') {
+            showQuestionScreen();
+        } else if (fjState.stage === 'results') {
+            showResultsScreen();
+        }
+    }
+
+    function showWagerScreen() {
+        const container = document.getElementById('wagerFields');
+        container.innerHTML = '';
+
+        for (let i = 1; i <= playerCount; i++) {
+            const maxWager = Math.max(Math.abs(playerScores[i]), 0);
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label class="question-label">
+                    ${escapeHtml(playerNames[i])} (Score: $${playerScores[i]})
+                </label>
+                <input type="number" 
+                       min="0" 
+                       max="${maxWager}"
+                       id="wager_${i}"
+                       required 
+                       class="question-input"
+                       value="0">
+            `;
+            container.appendChild(div);
+        }
+
+        document.getElementById('wagerScreen').style.display = 'flex';
+    }
+
+    function showQuestionScreen() {
+        document.getElementById('finalQuestionText').textContent = finalJeopardyQuestion.question;
+
+        const container = document.getElementById('answerFields');
+        container.innerHTML = '';
+
+        for (let i = 1; i <= playerCount; i++) {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label class="question-label">${escapeHtml(playerNames[i])}'s Answer:</label>
+                <input type="text" id="answer_${i}" class="question-input" required>
+            `;
+            container.appendChild(div);
+        }
+
+        document.getElementById('questionScreen').style.display = 'flex';
+    }
+
+    function showResultsScreen() {
+        gameState = GameState.load();
+        fjState = FinalJeopardy.load();
+        
+        const container = document.getElementById('resultsContent');
+        container.innerHTML = '';
+
+        const finalScores = gameState.playerScores;
+        const answers = fjState.answers;
+        const results = fjState.results;
+
+        for (let i = 1; i <= playerCount; i++) {
+            const resultColor = results[i] ? '#00ff00' : '#ff0000';
+            const resultText = results[i] ? 'Correct' : 'Incorrect';
+            
+            const div = document.createElement('div');
+            div.className = 'feedback-answer';
+            div.style.marginBottom = '20px';
+            div.innerHTML = `
+                <p><strong>${escapeHtml(playerNames[i])}:</strong></p>
+                <p>Your Answer: ${escapeHtml(answers[i])}</p>
+                <p>Result: <span style="color:${resultColor};">${resultText}</span></p>
+                <p>Final Score: $${finalScores[i]}</p>
+            `;
+            container.appendChild(div);
+        }
+
+        // Determine winner(s)
+        const maxScore = Math.max(...Object.values(finalScores));
+        const winners = [];
+        for (let i = 1; i <= playerCount; i++) {
+            if (finalScores[i] === maxScore) {
+                winners.push(playerNames[i]);
+            }
+        }
+
+        document.getElementById('winnerDisplay').textContent = winners.join(' & ');
+        document.getElementById('resultsScreen').style.display = 'flex';
+    }
+
+    // Wager form submission
+    document.getElementById('wagerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const wagers = {};
+        for (let i = 1; i <= playerCount; i++) {
+            const wager = parseInt(document.getElementById(`wager_${i}`).value) || 0;
+            const maxWager = Math.max(Math.abs(playerScores[i]), 0);
+            wagers[i] = Math.min(Math.max(wager, 0), maxWager);
+        }
+
+        FinalJeopardy.submitWagers(wagers);
+        renderStage();
+    });
+
+    // Answer form submission
+    document.getElementById('answerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const answers = {};
+        for (let i = 1; i <= playerCount; i++) {
+            answers[i] = document.getElementById(`answer_${i}`).value;
+        }
+
+        FinalJeopardy.submitAnswers(answers);
+        renderStage();
+    });
+
+    // Return button - clear game state
+    document.getElementById('returnBtn').addEventListener('click', function(e) {
+        GameState.clear();
+        FinalJeopardy.clear();
+    });
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+
+</body>
+</html>
