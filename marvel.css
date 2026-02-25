@@ -1444,3 +1444,497 @@ body.game-page .title-marvel {
     gap: 2em; /* Adjust spacing between P1 and P3 */
     width: 180px; /* This should match your .player-block width */
 }
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+/* Allow scrolling on game pages for smaller screens */
+body.game-page {
+    overflow-y: auto;
+    min-height: 100vh;
+    height: auto;
+}
+
+/* Lobby/Name Entry page adjustments */
+.name-entry-container {
+    padding-top: 180px;
+    padding-bottom: 40px;
+    min-height: 100vh;
+    height: auto;
+    align-items: flex-start;
+}
+
+/* Large tablets and small laptops */
+@media screen and (max-width: 1200px) {
+    .jeopardy-grid {
+        width: 600px;
+        height: 500px;
+    }
+    
+    .jeopardy-flex-row {
+        gap: 2vw;
+    }
+    
+    .player-block {
+        width: 150px;
+        min-width: 150px;
+        max-width: 150px;
+    }
+    
+    .container {
+        gap: 50px;
+    }
+    
+    .player-option {
+        width: 160px;
+        height: 160px;
+        font-size: 60px;
+    }
+}
+
+/* Tablets */
+@media screen and (max-width: 1024px) {
+    .title {
+        font-size: 60px;
+    }
+    
+    .title-jeopardy {
+        top: 70px;
+        font-size: 80px;
+    }
+    
+    .jeopardy-grid {
+        width: 500px;
+        height: 417px;
+        margin-top: 80px;
+    }
+    
+    .grid-cell {
+        font-size: 16px;
+    }
+    
+    .category-cell {
+        font-size: 12px;
+    }
+    
+    .jeopardy-flex-row {
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+    
+    .player-block {
+        width: 120px;
+        min-width: 120px;
+        max-width: 120px;
+    }
+    
+    .player-label {
+        font-size: 0.9em;
+    }
+    
+    .score-box {
+        font-size: 1em;
+        padding: 0.3em 0.8em;
+    }
+    
+    .container {
+        gap: 30px;
+        padding-bottom: 10vh;
+    }
+    
+    .player-option {
+        width: 140px;
+        height: 140px;
+        font-size: 48px;
+    }
+    
+    .player-icons svg {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .name-entry-container {
+        padding-top: 150px;
+    }
+    
+    .name-entry-card {
+        width: 400px;
+        padding: 2em;
+    }
+    
+    .name-entry-title {
+        font-size: 2em;
+    }
+}
+
+/* Small tablets and large phones (landscape) */
+@media screen and (max-width: 768px) {
+    body {
+        overflow-y: auto;
+        height: auto;
+    }
+    
+    .title {
+        font-size: 45px;
+        position: static;
+        transform: none;
+        margin: 15px auto;
+    }
+    
+    .title-jeopardy {
+        top: 50px;
+        font-size: 60px;
+    }
+    
+    body.game-page .title {
+        margin-bottom: 10px;
+    }
+    
+    .jeopardy-grid {
+        width: 95vw;
+        max-width: 450px;
+        height: auto;
+        aspect-ratio: 1.2;
+        margin-top: 60px;
+    }
+    
+    .grid-cell {
+        font-size: 14px;
+    }
+    
+    .category-cell {
+        font-size: 10px;
+    }
+    
+    .jeopardy-flex-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .jeopardy-flex-row .jeopardy-grid {
+        order: 1;
+    }
+    
+    .jeopardy-flex-row .player-block:first-child {
+        order: 0;
+    }
+    
+    .jeopardy-flex-row .player-block:last-child {
+        order: 2;
+    }
+    
+    .player-block {
+        flex-direction: row;
+        width: 100%;
+        max-width: 100%;
+        min-width: auto;
+        justify-content: space-around;
+        padding: 10px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 10px;
+    }
+    
+    .player-row-bottom {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .player-row-bottom .player-block {
+        flex-direction: row;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .player-icon {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .player-icon svg {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .container {
+        flex-direction: column;
+        gap: 20px;
+        padding: 120px 20px 30px;
+        align-items: center;
+    }
+    
+    .player-option {
+        width: 100px;
+        height: 100px;
+        font-size: 36px;
+    }
+    
+    .player-icons {
+        top: -70px;
+    }
+    
+    .player-icons svg {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .name-entry-container {
+        padding: 120px 15px 30px;
+    }
+    
+    .name-entry-card {
+        width: 100%;
+        padding: 1.5em;
+    }
+    
+    .name-entry-title {
+        font-size: 1.6em;
+    }
+    
+    .name-entry-sub {
+        font-size: 1em;
+    }
+    
+    .question-card {
+        padding: 1.5em;
+        max-width: 95%;
+    }
+    
+    .question-text {
+        font-size: 1.1em;
+        padding: 0.8em;
+    }
+    
+    .guess-title {
+        font-size: 1.8em;
+    }
+    
+    .guess-container {
+        flex-direction: column;
+        gap: 1.5em;
+    }
+    
+    .daily-double-title {
+        font-size: 2.5em;
+    }
+}
+
+/* Mobile phones */
+@media screen and (max-width: 480px) {
+    .title {
+        font-size: 32px;
+    }
+    
+    .title-jeopardy {
+        top: 38px;
+        font-size: 44px;
+    }
+    
+    .title-marvel {
+        padding: 0 8px;
+        letter-spacing: 2px;
+    }
+    
+    .preloader-marvel {
+        font-size: 40px;
+    }
+    
+    .preloader-jeopardy {
+        font-size: 32px;
+    }
+    
+    .jeopardy-grid {
+        width: 98vw;
+        margin-top: 50px;
+    }
+    
+    .grid-cell {
+        font-size: 11px;
+    }
+    
+    .category-cell {
+        font-size: 8px;
+        letter-spacing: 0;
+    }
+    
+    .player-block {
+        gap: 0.5em;
+        padding: 8px;
+    }
+    
+    .player-label {
+        font-size: 0.75em;
+    }
+    
+    .score-box {
+        font-size: 0.85em;
+        padding: 0.2em 0.5em;
+    }
+    
+    .turn-indicator {
+        font-size: 0.7em;
+        padding: 0.3em 0.6em;
+    }
+    
+    .container {
+        padding: 100px 15px 20px;
+    }
+    
+    .player-option {
+        width: 80px;
+        height: 80px;
+        font-size: 28px;
+    }
+    
+    .player-icons svg {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .name-entry-container {
+        padding: 100px 10px 20px;
+    }
+    
+    .name-entry-card {
+        padding: 1.2em;
+    }
+    
+    .name-entry-title {
+        font-size: 1.4em;
+    }
+    
+    .name-field label {
+        font-size: 1em;
+    }
+    
+    .name-field input {
+        font-size: 1em;
+        padding: 0.7em;
+    }
+    
+    .start-btn {
+        font-size: 1.2em;
+        padding: 0.7em;
+    }
+    
+    .question-card {
+        padding: 1.2em;
+    }
+    
+    .question-header {
+        flex-direction: column;
+        gap: 0.5em;
+        text-align: center;
+    }
+    
+    .question-category {
+        font-size: 1.1em;
+    }
+    
+    .question-value {
+        font-size: 1.3em;
+    }
+    
+    .question-text {
+        font-size: 1em;
+        padding: 0.6em;
+    }
+    
+    .submit-btn, .cancel-btn {
+        font-size: 0.95em;
+        padding: 0.6em;
+    }
+    
+    .guess-title {
+        font-size: 1.4em;
+    }
+    
+    .guess-instructions {
+        font-size: 1em;
+    }
+    
+    .daily-double-title {
+        font-size: 1.8em;
+    }
+    
+    .wager-info {
+        padding: 1em;
+    }
+    
+    .wager-info p {
+        font-size: 1em;
+    }
+    
+    .wager-form input[type="number"] {
+        font-size: 1.8em;
+    }
+    
+    .lobby-buttons {
+        flex-direction: column;
+    }
+}
+
+/* Very small phones */
+@media screen and (max-width: 360px) {
+    .title {
+        font-size: 26px;
+    }
+    
+    .title-jeopardy {
+        top: 30px;
+        font-size: 36px;
+    }
+    
+    .grid-cell {
+        font-size: 9px;
+    }
+    
+    .category-cell {
+        font-size: 7px;
+    }
+    
+    .player-option {
+        width: 70px;
+        height: 70px;
+        font-size: 24px;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    .title {
+        font-size: 28px;
+        margin: 5px auto;
+    }
+    
+    .title-jeopardy {
+        top: 32px;
+        font-size: 38px;
+    }
+    
+    .jeopardy-grid {
+        margin-top: 40px;
+        max-height: 60vh;
+        width: auto;
+        aspect-ratio: 1.2;
+    }
+    
+    .jeopardy-flex-row {
+        flex-direction: row;
+        flex-wrap: nowrap;
+    }
+    
+    .player-block {
+        flex-direction: column;
+        width: 100px;
+        min-width: 100px;
+        max-width: 100px;
+    }
+    
+    .name-entry-container {
+        padding-top: 80px;
+    }
+    
+    .container {
+        padding-top: 60px;
+        flex-direction: row;
+    }
+}
