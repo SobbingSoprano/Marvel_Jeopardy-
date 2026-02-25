@@ -230,7 +230,7 @@ if (isset($_POST['answer_submit'])) {
         && (empty($showForm) || !$isDailyDouble)
     ): ?>
         <audio class="audio-player game-audio" controls loop autoplay>
-            <source src="Assets/Sounds/krakoa match.wav" type="audio/wav">
+            <source src="Assets/Sounds/krakoa-match.wav" type="audio/wav">
             Your browser does not support the audio element.
         </audio>
     <?php endif; ?>
@@ -283,7 +283,7 @@ if (isset($_POST['answer_submit'])) {
     <?php if ($showDDWager): ?>
         <div class="question-overlay">
             <audio class="daily-double-audio" autoplay loop>
-                <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+                <source src="Assets/Sounds/krakoa-overtime.wav" type="audio/wav">
                 Your browser does not support the audio element.
             </audio>
             <div class="question-card daily-double-card">
@@ -312,7 +312,7 @@ if (isset($_POST['answer_submit'])) {
     <?php if ($showDDQuestion): ?>
         <div class="question-overlay">
             <audio class="daily-double-audio" autoplay loop>
-                <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+                <source src="Assets/Sounds/krakoa-overtime.wav" type="audio/wav">
                 Your browser does not support the audio element.
             </audio>
             <div class="question-card daily-double-question-card">

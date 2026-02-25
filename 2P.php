@@ -248,7 +248,7 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
     <!-- Audio Player (only play on non-Daily Double screens) -->
     <?php if (!$showDailyDoubleWager && !$showDailyDoubleQuestion): ?>
         <audio class="audio-player game-audio" controls loop autoplay>
-            <source src="Assets/Sounds/krakoa match.wav" type="audio/wav">
+            <source src="Assets/Sounds/krakoa-match.wav" type="audio/wav">
             Your browser does not support the audio element.
         </audio>
     <?php endif; ?>
@@ -307,7 +307,7 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
         ?>
         <div class="question-overlay">
             <audio class="daily-double-audio" autoplay loop>
-                <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+                <source src="Assets/Sounds/krakoa-overtime.wav" type="audio/wav">
                 Your browser does not support the audio element.
             </audio>
             <div class="question-card daily-double-card">
@@ -335,7 +335,7 @@ $player2Score = $_SESSION['player2_score'] ?? 0;
         <!-- Daily Double Question -->
         <div class="question-overlay">
             <audio class="daily-double-audio" autoplay loop>
-                <source src="Assets/Sounds/krakoa overtime.wav" type="audio/wav">
+                <source src="Assets/Sounds/krakoa-overtime.wav" type="audio/wav">
                 Your browser does not support the audio element.
             </audio>
             <div class="question-card daily-double-question-card">
