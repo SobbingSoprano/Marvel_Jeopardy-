@@ -522,6 +522,7 @@
 
         // Start game (host only)
         async function startGame() {
+            AudioManager.play('match');
             await MultiplayerManager.startGame();
         }
 

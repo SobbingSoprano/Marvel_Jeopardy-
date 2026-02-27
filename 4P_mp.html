@@ -452,7 +452,7 @@
             AudioManager.play('match');
         });
 
-        async function startGame() { await MultiplayerManager.startGame(); }
+        async function startGame() { AudioManager.play('match'); await MultiplayerManager.startGame(); }
 
         document.getElementById('resetLink').addEventListener('click', async function(e) {
             e.preventDefault();

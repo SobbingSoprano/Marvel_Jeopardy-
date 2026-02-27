@@ -17,6 +17,9 @@
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
     
+    <!-- Audio Manager -->
+    <script src="audio-manager.js"></script>
+    
     <!-- Game Logic -->
     <script src="questions.js"></script>
 </head>
@@ -99,6 +102,7 @@
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
+        AudioManager.play('overtime');
         renderStage();
     });
 

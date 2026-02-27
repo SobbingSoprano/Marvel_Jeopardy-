@@ -18,6 +18,9 @@
     
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
+    
+    <!-- Audio Manager -->
+    <script src="audio-manager.js"></script>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -202,6 +205,9 @@
                 document.getElementById('firebaseWarning').style.display = 'flex';
                 return;
             }
+
+            // Start background music
+            AudioManager.play('match');
 
             // Initialize multiplayer manager
             MultiplayerManager.init();

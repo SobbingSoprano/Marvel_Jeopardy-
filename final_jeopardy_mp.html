@@ -17,6 +17,9 @@
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
     
+    <!-- Audio Manager -->
+    <script src="audio-manager.js"></script>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -117,6 +120,7 @@
         let myPlayerNumber = null;
 
         document.addEventListener('DOMContentLoaded', async function() {
+            AudioManager.play('overtime');
             const roomCode = sessionStorage.getItem('mp_roomCode');
             if (!roomCode) {
                 window.location.href = 'lobby.html';
