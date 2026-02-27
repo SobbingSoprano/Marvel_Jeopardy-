@@ -24,16 +24,21 @@ body {
     justify-content: center;
     z-index: 9999;
     pointer-events: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
 }
 
-/* Homepage preloader - longer delay for videos and audio */
-.preloader-homepage {
-    animation: fadeOut 0.5s ease-out 5s forwards;
+/* JS-controlled hidden state */
+.preloader-hidden {
+    opacity: 0;
+    visibility: hidden;
 }
 
-/* Game page preloader - shorter delay */
+/* Legacy fallback classes - no longer auto-animated */
+.preloader-homepage,
 .preloader-gamepage {
-    animation: fadeOut 0.5s ease-out 1.5s forwards;
+    /* Animation removed - now controlled by preloader.js */
 }
 
 @keyframes fadeOut {
