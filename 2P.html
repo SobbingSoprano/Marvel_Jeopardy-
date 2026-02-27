@@ -35,7 +35,7 @@
 
     <!-- Title -->
     <div class="title">
-        <a href="#" class="title-wrapper" id="resetLink">
+        <a href="index.html" class="title-wrapper" id="resetLink">
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
@@ -500,12 +500,12 @@
             }
         });
 
-        // Reset link
+        // Reset link - go to homepage
         document.getElementById('resetLink').addEventListener('click', function(e) {
             e.preventDefault();
-            if (confirm('Are you sure you want to reset the game?')) {
+            if (confirm('Are you sure you want to leave the game?')) {
                 GameState.clear();
-                window.location.href = '2P.html';
+                window.location.href = 'index.html';
             }
         });
     </script>

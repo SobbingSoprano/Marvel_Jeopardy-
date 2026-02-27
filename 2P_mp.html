@@ -41,7 +41,7 @@
 
     <!-- Title -->
     <div class="title">
-        <a href="#" class="title-wrapper" id="resetLink">
+        <a href="index.html" class="title-wrapper" id="resetLink">
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
@@ -528,12 +528,12 @@
             await MultiplayerManager.startGame();
         }
 
-        // Leave game
+        // Leave game - go to homepage
         document.getElementById('resetLink').addEventListener('click', async function(e) {
             e.preventDefault();
             if (confirm('Are you sure you want to leave the game?')) {
                 await MultiplayerManager.leaveRoom();
-                window.location.href = 'lobby.html';
+                window.location.href = 'index.html';
             }
         });
 
