@@ -19,6 +19,9 @@
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
     
+    <!-- Audio Manager -->
+    <script src="audio-manager.js"></script>
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -53,11 +56,7 @@
         <span>Connected</span>
     </div>
 
-    <!-- Audio Player -->
-    <audio class="audio-player game-audio" id="gameAudio" controls loop autoplay>
-        <source src="Assets/Sounds/krakoa-match.mp3" type="audio/mpeg">
-        Your browser does not support the audio element.
-    </audio>
+
 
     <!-- Number Guessing Overlay -->
     <div class="question-overlay" id="guessOverlay" style="display: none;">
@@ -91,9 +90,6 @@
 
     <!-- Daily Double Wager Overlay -->
     <div class="question-overlay" id="ddWagerOverlay" style="display: none;">
-        <audio class="daily-double-audio" autoplay loop>
-            <source src="Assets/Sounds/krakoa-overtime.mp3" type="audio/mpeg">
-        </audio>
         <div class="question-card daily-double-card">
             <div class="daily-double-header">
                 <h1 class="daily-double-title">DAILY DOUBLE!</h1>
@@ -328,6 +324,7 @@
 
         function showGuessOverlay() {
             document.getElementById('guessOverlay').style.display = 'flex';
+            AudioManager.play('overtime');
             const myGuess = gameState.guesses?.[myPlayerNumber];
             
             if (myGuess !== undefined && myGuess !== null) {
@@ -384,7 +381,7 @@
 
         function showDailyDoubleWager(q) {
             document.getElementById('ddWagerOverlay').style.display = 'flex';
-            document.getElementById('gameAudio').pause();
+            AudioManager.play('overtime');
             const myScore = gameState.playerScores[myPlayerNumber] || 0;
             const cardValue = parseInt(q.value.replace('$', ''));
             const maxWager = Math.max(myScore, cardValue);
@@ -452,7 +449,7 @@
         document.getElementById('feedbackClose').addEventListener('click', async function(e) {
             e.preventDefault();
             await MultiplayerManager.clearFeedback();
-            document.getElementById('gameAudio').play();
+            AudioManager.play('match');
         });
 
         async function startGame() { await MultiplayerManager.startGame(); }

@@ -19,6 +19,9 @@
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
     
+    <!-- Audio Manager -->
+    <script src="audio-manager.js"></script>
+    
     <!-- Game Logic -->
     <script src="questions.js"></script>
 </head>
@@ -40,12 +43,6 @@
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
     </div>
-
-    <!-- Audio Player -->
-    <audio class="audio-player game-audio" id="gameAudio" controls loop autoplay>
-        <source src="Assets/Sounds/krakoa-match.mp3" type="audio/mpeg">
-        Your browser does not support the audio element.
-    </audio>
 
     <!-- Number Guessing Overlay -->
     <div class="question-overlay" id="guessOverlay" style="display: none;">
@@ -72,9 +69,6 @@
 
     <!-- Daily Double Wager Overlay -->
     <div class="question-overlay" id="ddWagerOverlay" style="display: none;">
-        <audio class="daily-double-audio" autoplay loop>
-            <source src="Assets/Sounds/krakoa-overtime.mp3" type="audio/mpeg">
-        </audio>
         <div class="question-card daily-double-card">
             <div class="daily-double-header">
                 <h1 class="daily-double-title">DAILY DOUBLE!</h1>
@@ -96,9 +90,6 @@
 
     <!-- Daily Double Question Overlay -->
     <div class="question-overlay" id="ddQuestionOverlay" style="display: none;">
-        <audio class="daily-double-audio" autoplay loop>
-            <source src="Assets/Sounds/krakoa-overtime.mp3" type="audio/mpeg">
-        </audio>
         <div class="question-card daily-double-question-card">
             <div class="question-header">
                 <span class="question-category" id="ddQCategory"></span>
@@ -288,6 +279,9 @@
         }
 
         function showGuessOverlay() {
+            // Switch to overtime music for "Who Goes First?"
+            AudioManager.play('overtime');
+            
             const overlay = document.getElementById('guessOverlay');
             const fieldsContainer = document.getElementById('guessFields');
             fieldsContainer.innerHTML = '';
@@ -349,6 +343,8 @@
         // Start game button
         document.getElementById('startGameBtn').addEventListener('click', function(e) {
             e.preventDefault();
+            // Switch to match music when game starts
+            AudioManager.play('match');
             document.getElementById('guessOverlay').style.display = 'none';
             renderPage();
         });
@@ -378,8 +374,8 @@
             document.getElementById('ddCategory').value = category;
             document.getElementById('ddValue').value = value;
             
-            // Pause game audio
-            document.getElementById('gameAudio').pause();
+            // Switch to overtime music for Daily Double
+            AudioManager.play('overtime');
             
             overlay.style.display = 'flex';
         }
@@ -503,13 +499,15 @@
             e.preventDefault();
             document.getElementById('feedbackOverlay').style.display = 'none';
             
-            // Resume game audio
-            document.getElementById('gameAudio').play();
+            // Resume match music
+            AudioManager.play('match');
             
             // Check for game over
             state = GameState.load();
             if (state.usedCells.length >= 30) {
-                window.location.href = 'final_jeopardy.html';
+                AudioManager.fadeOut().then(() => {
+                    window.location.href = 'final_jeopardy.html';
+                });
             } else {
                 renderPage();
             }

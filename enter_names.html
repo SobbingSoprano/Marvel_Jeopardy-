@@ -19,6 +19,9 @@
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
     
+    <!-- Audio Manager -->
+    <script src="audio-manager.js"></script>
+    
     <!-- Game Logic -->
     <script src="questions.js"></script>
 </head>
@@ -104,9 +107,15 @@
             // Save names to game state
             GameState.setPlayerNames(names);
             
-            // Redirect to appropriate game page
-            window.location.href = `${playerCount}P.html`;
+            // Fade out audio before navigating
+            AudioManager.fadeOut().then(() => {
+                // Redirect to appropriate game page
+                window.location.href = `${playerCount}P.html`;
+            });
         });
+        
+        // Start playing match music when page loads
+        AudioManager.play('match');
     </script>
 
 </body>
