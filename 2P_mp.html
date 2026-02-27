@@ -26,6 +26,9 @@
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
     
+    <!-- Security Utilities -->
+    <script src="security.js"></script>
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -203,6 +206,29 @@
         let myPlayerNumber = null;
         let isMyTurn = false;
         let currentQuestion = null;
+        let lastAudioState = null; // Track synced audio state
+
+        // Flexible answer checking
+        function normalizeAnswer(answer) {
+            let normalized = answer.toLowerCase().trim();
+            normalized = normalized.replace(/^(what is|who is|what's|who's|where is|when is)\s+/i, '');
+            normalized = normalized.replace(/^(the|a|an)\s+/i, '');
+            normalized = normalized.replace(/\s+/g, ' ');
+            normalized = normalized.replace(/[^\w\s']/g, '');
+            return normalized.trim();
+        }
+
+        function checkAnswerFlexible(category, value, userAnswer) {
+            const correctAnswers = allQuestions[category][value].answer;
+            const normalizedUserAnswer = normalizeAnswer(userAnswer);
+            return correctAnswers.some(ans => {
+                const normalizedCorrect = normalizeAnswer(ans);
+                if (normalizedUserAnswer === normalizedCorrect) return true;
+                if (normalizedUserAnswer.includes(normalizedCorrect)) return true;
+                if (normalizedCorrect.includes(normalizedUserAnswer) && normalizedUserAnswer.length > 3) return true;
+                return false;
+            });
+        }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async function() {
@@ -239,6 +265,12 @@
             if (gameState.stage === 'final_jeopardy') {
                 window.location.href = 'final_jeopardy_mp.html';
                 return;
+            }
+
+            // Sync audio state across all players
+            if (gameState.audioState && gameState.audioState !== lastAudioState) {
+                lastAudioState = gameState.audioState;
+                AudioManager.play(gameState.audioState);
             }
 
             isMyTurn = gameState.currentTurn === myPlayerNumber;
@@ -349,7 +381,7 @@
         // Show guess overlay
         function showGuessOverlay() {
             document.getElementById('guessOverlay').style.display = 'flex';
-            AudioManager.play('overtime');
+            // Audio now synced via Firebase gameState.audioState
             
             // Check if I already guessed
             const myGuess = gameState.guesses?.[myPlayerNumber];
@@ -425,7 +457,7 @@
         // Show daily double wager
         function showDailyDoubleWager(q) {
             document.getElementById('ddWagerOverlay').style.display = 'flex';
-            AudioManager.play('overtime');
+            // Audio now synced via Firebase gameState.audioState
             
             const myScore = gameState.playerScores[myPlayerNumber] || 0;
             const cardValue = parseInt(q.value.replace('$', ''));
@@ -496,8 +528,17 @@
         document.getElementById('wagerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const wager = parseInt(document.getElementById('wagerInput').value);
-            await MultiplayerManager.submitDDWager(wager);
+            const wagerInput = document.getElementById('wagerInput');
+            const maxWager = parseInt(wagerInput.max) || 1000;
+            const validation = Security.validateWager(wagerInput.value, 5, maxWager);
+            
+            if (!validation.valid) {
+                wagerInput.setCustomValidity(validation.message);
+                wagerInput.reportValidity();
+                return;
+            }
+            
+            await MultiplayerManager.submitDDWager(validation.value);
         });
 
         // Submit answer
@@ -507,8 +548,7 @@
             const answer = document.getElementById('answerInput').value.trim();
             const q = gameState.currentQuestion;
             
-            const isCorrect = allQuestions[q.category][q.value].answer
-                .some(a => answer.toLowerCase() === a.toLowerCase());
+            const isCorrect = checkAnswerFlexible(q.category, q.value, answer);
             
             const points = q.isDailyDouble ? gameState.dailyDoubleWager : parseInt(q.value.replace('$', ''));
             
@@ -521,12 +561,12 @@
         document.getElementById('feedbackClose').addEventListener('click', async function(e) {
             e.preventDefault();
             await MultiplayerManager.clearFeedback();
-            AudioManager.play('match');
+            // Audio now synced via Firebase gameState.audioState
         });
 
         // Start game (host only)
         async function startGame() {
-            AudioManager.play('match');
+            // Audio now synced via Firebase gameState.audioState
             await MultiplayerManager.startGame();
         }
 

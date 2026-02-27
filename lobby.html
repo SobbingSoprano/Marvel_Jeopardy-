@@ -24,6 +24,9 @@
     
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
+    
+    <!-- Security Utilities -->
+    <script src="security.js"></script>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -265,7 +268,16 @@
         document.getElementById('createRoomForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const hostName = document.getElementById('hostName').value.trim();
+            const hostNameInput = document.getElementById('hostName');
+            const validation = Security.validateName(hostNameInput.value);
+            if (!validation.valid && hostNameInput.value.trim().length > 0) {
+                hostNameInput.setCustomValidity(validation.message);
+                hostNameInput.reportValidity();
+                hostNameInput.classList.add('input-error');
+                return;
+            }
+
+            const hostName = Security.sanitizeName(hostNameInput.value) || 'Host';
             const playerCount = parseInt(document.getElementById('playerCount').value);
             currentPlayerCount = playerCount;
 
@@ -280,8 +292,17 @@
         document.getElementById('joinRoomForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const playerName = document.getElementById('playerName').value.trim();
-            const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
+            const playerNameInput = document.getElementById('playerName');
+            const validation = Security.validateName(playerNameInput.value);
+            if (!validation.valid && playerNameInput.value.trim().length > 0) {
+                playerNameInput.setCustomValidity(validation.message);
+                playerNameInput.reportValidity();
+                playerNameInput.classList.add('input-error');
+                return;
+            }
+
+            const playerName = Security.sanitizeName(playerNameInput.value) || 'Player';
+            const roomCode = Security.sanitizeUrlParam(document.getElementById('roomCode').value.trim().toUpperCase());
 
             const result = await MultiplayerManager.joinRoom(roomCode, playerName);
             

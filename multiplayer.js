@@ -94,7 +94,8 @@ const MultiplayerManager = {
                 guesses: {},
                 currentQuestion: null,
                 dailyDoubleWager: null,
-                feedback: null
+                feedback: null,
+                audioState: 'overtime' // Synced audio state: 'match' or 'overtime'
             }
         };
 
@@ -317,6 +318,19 @@ const MultiplayerManager = {
         }
     },
 
+    // Update synced audio state for all players
+    async updateAudioState(trackName) {
+        if (!this.roomRef) return false;
+
+        try {
+            await this.roomRef.child('gameState/audioState').set(trackName);
+            return true;
+        } catch (error) {
+            console.error('Error updating audio state:', error);
+            return false;
+        }
+    },
+
     // Submit guess (any player)
     async submitGuess(playerNumber, guess) {
         if (!this.roomRef) return false;
@@ -377,7 +391,8 @@ const MultiplayerManager = {
 
             await this.roomRef.child('gameState').update({
                 currentTurn: firstPlayer,
-                gameStarted: true
+                gameStarted: true,
+                audioState: 'match' // Switch to match music when game starts
             });
 
             return true;
@@ -393,14 +408,22 @@ const MultiplayerManager = {
         if (!this.roomRef) return false;
         
         try {
-            await this.roomRef.child('gameState/currentQuestion').set({
+            const updates = {
                 category: category,
                 value: value,
                 isDailyDouble: isDailyDouble,
                 questionText: allQuestions[category][value].question,
                 answeredBy: null,
                 waitingForAnswer: true
-            });
+            };
+            
+            await this.roomRef.child('gameState/currentQuestion').set(updates);
+            
+            // Update audio state for all players if daily double
+            if (isDailyDouble) {
+                await this.roomRef.child('gameState/audioState').set('overtime');
+            }
+            
             return true;
         } catch (error) {
             console.error('Error selecting cell:', error);
@@ -472,10 +495,13 @@ const MultiplayerManager = {
         }
     },
 
-    // Clear feedback
+    // Clear feedback and resume match music
     async clearFeedback() {
         if (!this.roomRef) return;
-        await this.roomRef.child('gameState/feedback').remove();
+        await this.roomRef.child('gameState').update({
+            feedback: null,
+            audioState: 'match' // Resume match music for all players
+        });
     },
 
     // Final Jeopardy: Submit wager

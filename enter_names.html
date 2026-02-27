@@ -25,6 +25,9 @@
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
     
+    <!-- Security Utilities -->
+    <script src="security.js"></script>
+    
     <!-- Game Logic -->
     <script src="questions.js"></script>
 </head>
@@ -97,14 +100,28 @@
         document.getElementById('nameForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
+            // Validate all names before proceeding
+            let hasError = false;
+            for (let i = 1; i <= playerCount; i++) {
+                const input = document.getElementById(`player${i}_name`);
+                const validation = Security.validateName(input.value);
+                if (!validation.valid && input.value.trim().length > 0) {
+                    hasError = true;
+                    input.setCustomValidity(validation.message);
+                    input.reportValidity();
+                    input.classList.add('input-error');
+                    return; // Stop submission
+                }
+            }
+            
             // Initialize game state
             GameState.init(playerCount);
             
-            // Collect names
+            // Collect and sanitize names
             const names = {};
             for (let i = 1; i <= playerCount; i++) {
                 const input = document.getElementById(`player${i}_name`);
-                names[i] = input.value.trim() || `Player ${i}`;
+                names[i] = Security.sanitizeName(input.value) || `Player ${i}`;
             }
             
             // Save names to game state

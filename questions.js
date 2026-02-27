@@ -305,11 +305,44 @@ const GameState = {
         return state ? state.usedCells.length >= 30 : false;
     },
     
-    // Check answer
+    // Normalize answer for flexible matching
+    normalizeAnswer(answer) {
+        let normalized = answer.toLowerCase().trim();
+        
+        // Remove "what is", "who is", "what's", "who's" prefixes
+        normalized = normalized.replace(/^(what is|who is|what's|who's|where is|when is)\s+/i, '');
+        
+        // Remove leading articles "the", "a", "an"
+        normalized = normalized.replace(/^(the|a|an)\s+/i, '');
+        
+        // Collapse multiple spaces to single space
+        normalized = normalized.replace(/\s+/g, ' ');
+        
+        // Remove punctuation except apostrophes (for names like T'Challa)
+        normalized = normalized.replace(/[^\w\s']/g, '');
+        
+        return normalized.trim();
+    },
+    
+    // Check answer with flexible matching
     checkAnswer(category, value, userAnswer) {
         const correctAnswers = allQuestions[category][value].answer;
-        const normalizedAnswer = userAnswer.toLowerCase().trim();
-        return correctAnswers.some(ans => normalizedAnswer === ans.toLowerCase());
+        const normalizedUserAnswer = this.normalizeAnswer(userAnswer);
+        
+        return correctAnswers.some(ans => {
+            const normalizedCorrect = this.normalizeAnswer(ans);
+            
+            // Exact match after normalization
+            if (normalizedUserAnswer === normalizedCorrect) return true;
+            
+            // Check if user answer contains the correct answer (for partial matches)
+            if (normalizedUserAnswer.includes(normalizedCorrect)) return true;
+            
+            // Check if correct answer contains user answer (for abbreviations)
+            if (normalizedCorrect.includes(normalizedUserAnswer) && normalizedUserAnswer.length > 3) return true;
+            
+            return false;
+        });
     },
     
     // Get question

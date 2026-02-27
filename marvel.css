@@ -983,6 +983,18 @@ body.game-page .title-marvel {
     box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
 }
 
+/* Input error state for validation */
+.input-error,
+input.input-error,
+input:invalid {
+    border-color: #ff6600 !important;
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.5) !important;
+}
+
+.input-error::placeholder {
+    color: #ff6600;
+}
+
 .question-buttons {
     display: flex;
     gap: 1em;

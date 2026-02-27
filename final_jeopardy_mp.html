@@ -22,6 +22,9 @@
     
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
+    
+    <!-- Security Utilities -->
+    <script src="security.js"></script>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -263,12 +266,12 @@
         // Wager form submission
         document.getElementById('wagerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const wager = parseInt(document.getElementById('wagerInput').value) || 0;
+            const wagerInput = document.getElementById('wagerInput');
             const myScore = gameState.playerScores[myPlayerNumber] || 0;
             const maxWager = Math.max(Math.abs(myScore), 0);
-            const validWager = Math.min(Math.max(wager, 0), maxWager);
+            const validation = Security.validateWager(wagerInput.value, 0, maxWager, myScore);
             
-            await MultiplayerManager.submitFinalWager(myPlayerNumber, validWager);
+            await MultiplayerManager.submitFinalWager(myPlayerNumber, validation.value);
         });
 
         // Answer form submission

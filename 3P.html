@@ -26,6 +26,9 @@
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
     
+    <!-- Security Utilities -->
+    <script src="security.js"></script>
+    
     <!-- Game Logic -->
     <script src="questions.js"></script>
 </head>
@@ -388,7 +391,17 @@
         document.getElementById('wagerForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            ddWager = parseInt(document.getElementById('wagerInput').value);
+            const wagerInput = document.getElementById('wagerInput');
+            const maxWager = parseInt(wagerInput.max) || 1000;
+            const validation = Security.validateWager(wagerInput.value, 5, maxWager);
+            
+            if (!validation.valid) {
+                wagerInput.setCustomValidity(validation.message);
+                wagerInput.reportValidity();
+                return;
+            }
+            
+            ddWager = validation.value;
             const category = document.getElementById('ddCategory').value;
             const value = document.getElementById('ddValue').value;
             

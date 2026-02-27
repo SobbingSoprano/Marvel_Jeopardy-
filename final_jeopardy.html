@@ -23,6 +23,9 @@
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
     
+    <!-- Security Utilities -->
+    <script src="security.js"></script>
+    
     <!-- Game Logic -->
     <script src="questions.js"></script>
 </head>
@@ -215,9 +218,10 @@
 
         const wagers = {};
         for (let i = 1; i <= playerCount; i++) {
-            const wager = parseInt(document.getElementById(`wager_${i}`).value) || 0;
             const maxWager = Math.max(Math.abs(playerScores[i]), 0);
-            wagers[i] = Math.min(Math.max(wager, 0), maxWager);
+            const wagerInput = document.getElementById(`wager_${i}`);
+            const validation = Security.validateWager(wagerInput.value, 0, maxWager, playerScores[i]);
+            wagers[i] = validation.value;
         }
 
         FinalJeopardy.submitWagers(wagers);
