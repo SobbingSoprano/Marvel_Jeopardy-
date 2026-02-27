@@ -24,41 +24,61 @@ const Preloader = {
     
     // Load and track all assets
     async loadAssets() {
-        const promises = [];
+        // PRIORITY 1: Preload audio first (fast, critical for UX)
+        const audioPromises = [];
+        
+        // Preload AudioManager tracks if available
+        if (typeof AudioManager !== 'undefined') {
+            AudioManager.preloadAll();
+        }
+        
+        // Track existing audio elements
+        const audios = document.querySelectorAll('audio');
+        audios.forEach(audio => {
+            audio.preload = 'auto';
+            audioPromises.push(this.loadAudio(audio));
+        });
+        
+        // Wait for audio to load first (with 2s timeout)
+        try {
+            await Promise.race([
+                Promise.all(audioPromises),
+                this.timeout(2000)
+            ]);
+        } catch (e) {
+            // Audio timeout, continue anyway
+        }
+        
+        // PRIORITY 2: Load other assets (videos can take longer)
+        const otherPromises = [];
         
         // Track video loading (wait for canplaythrough or enough data)
         const videos = document.querySelectorAll('video');
         videos.forEach(video => {
-            promises.push(this.loadVideo(video));
-        });
-        
-        // Track audio loading
-        const audios = document.querySelectorAll('audio');
-        audios.forEach(audio => {
-            promises.push(this.loadAudio(audio));
+            otherPromises.push(this.loadVideo(video));
         });
         
         // Track image loading
         const images = document.querySelectorAll('img');
         images.forEach(img => {
             if (!img.complete) {
-                promises.push(this.loadImage(img));
+                otherPromises.push(this.loadImage(img));
             }
         });
         
         // Track background images in CSS
-        promises.push(this.loadBackgroundImages());
+        otherPromises.push(this.loadBackgroundImages());
         
         // Wait for fonts
         if (document.fonts && document.fonts.ready) {
-            promises.push(document.fonts.ready);
+            otherPromises.push(document.fonts.ready);
         }
         
-        // Wait for all assets or timeout after 10 seconds
+        // Wait for remaining assets or timeout after 8 seconds
         try {
             await Promise.race([
-                Promise.all(promises),
-                this.timeout(10000)
+                Promise.all(otherPromises),
+                this.timeout(8000)
             ]);
         } catch (e) {
             console.log('Preloader timeout or error, continuing anyway');

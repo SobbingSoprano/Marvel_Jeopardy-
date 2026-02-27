@@ -10,6 +10,7 @@ const AudioManager = {
     currentTrack: null,
     fadeTime: 500, // ms for fade transitions
     volume: 0.7,   // default volume
+    preloadedAudio: {}, // Cache for preloaded audio
     
     tracks: {
         'menu': 'Assets/Sounds/krakoa-menu-theme.mp3',
@@ -17,14 +18,30 @@ const AudioManager = {
         'overtime': 'Assets/Sounds/krakoa-overtime.mp3'
     },
     
+    // Preload all audio tracks immediately
+    preloadAll() {
+        Object.entries(this.tracks).forEach(([name, url]) => {
+            const audio = new Audio();
+            audio.preload = 'auto';
+            audio.src = url;
+            // Start loading immediately
+            audio.load();
+            this.preloadedAudio[name] = audio;
+        });
+    },
+    
     // Initialize audio system
     init() {
+        // Preload all tracks first
+        this.preloadAll();
+        
         // Create main audio element if it doesn't exist
         if (!document.getElementById('audioManager')) {
             const audio = document.createElement('audio');
             audio.id = 'audioManager';
             audio.loop = true;
             audio.volume = 0;
+            audio.preload = 'auto';
             document.body.appendChild(audio);
         }
         this.currentAudio = document.getElementById('audioManager');
