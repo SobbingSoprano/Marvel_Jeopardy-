@@ -7,7 +7,7 @@
 
 const Preloader = {
     minDisplayTime: 2000, // Minimum time to show preloader (ms)
-    globalTimeout: 45000, // Absolute maximum wait time (45s)
+    globalTimeout: window.innerWidth < 768 ? 12000 : 25000, // Shorter timeout on mobile
     startTime: Date.now(),
     quipInterval: null,
 

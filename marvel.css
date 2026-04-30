@@ -406,12 +406,13 @@ body {
     color: #ff0000;
     cursor: pointer;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-    box-shadow: 8px 8px 0px rgba(255, 255, 255, 0.25);
+    box-shadow: 5px 5px 0px rgba(255, 255, 255, 0.2);
     position: relative;
     backdrop-filter: blur(0px);
     font-family: 'Bungee', cursive;
     letter-spacing: 2px;
     overflow: visible;
+    z-index: 1;
 }
 
 /* Red card backs behind main card */
@@ -428,7 +429,7 @@ body {
     left: 0;
     z-index: -1;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 8px 8px 0px rgba(255, 255, 255, 0.15);
+    box-shadow: 5px 5px 0px rgba(255, 255, 255, 0.12);
 }
 
 /* Default state: cards stacked */
@@ -445,17 +446,16 @@ body {
     transform: translateY(-10px) rotate(-3deg) scale(1.08);
     background: #111;
     border-color: #fff;
-    box-shadow: 12px 12px 0px rgba(255, 255, 255, 0.4);
+    box-shadow: 7px 7px 0px rgba(255, 255, 255, 0.35);
     z-index: 10;
 }
 
-/* 2P: 1 card behind */
+/* 2P: only 1 card behind — hide the second pseudo-element so nothing vanishes on hover */
+.player-option:nth-child(1)::after {
+    opacity: 0;
+}
 .player-option:nth-child(1):hover::before {
     transform: translate(-25px, 5px) rotate(-12deg);
-}
-.player-option:nth-child(1):hover::after {
-    transform: translate(4px, 4px) rotate(2deg);
-    opacity: 0;
 }
 
 /* 3P: 2 cards behind */
@@ -466,8 +466,7 @@ body {
     transform: translate(35px, 5px) rotate(14deg);
 }
 
-/* 4P: 3 cards behind - we only have 2 pseudo-elements, 
-   so we use a child element for the 3rd card */
+/* 4P: 4 cards total — 3 fanned out + 1 that rises vertically from the back */
 .player-option:nth-child(3) .extra-card {
     content: '';
     position: absolute;
@@ -480,27 +479,98 @@ body {
     left: 0;
     z-index: -2;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 8px 8px 0px rgba(255, 255, 255, 0.15);
+    box-shadow: 5px 5px 0px rgba(255, 255, 255, 0.12);
     transform: translate(12px, 12px) rotate(6deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bangers', cursive;
+    font-size: 72px;
+    color: rgba(0, 0, 0, 0.25);
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0 rgba(255, 255, 255, 0.15);
 }
 
+/* 4th card — hidden at rest, rises up on hover */
+.player-option:nth-child(3) .extra-card-2 {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #cc0000;
+    border: 3px solid #fff;
+    border-radius: 12px;
+    top: 0;
+    left: 0;
+    z-index: -3;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    box-shadow: 5px 5px 0px rgba(255, 255, 255, 0.12);
+    opacity: 0;
+    transform: translate(6px, 6px) scale(0.9) rotate(3deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bangers', cursive;
+    font-size: 72px;
+    color: rgba(0, 0, 0, 0.25);
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* 4P hover spread */
 .player-option:nth-child(3):hover::before {
-    transform: translate(-45px, -5px) rotate(-22deg);
+    transform: translate(-40px, 0px) rotate(-18deg);
 }
 .player-option:nth-child(3):hover::after {
-    transform: translate(0px, -10px) rotate(-2deg);
+    transform: translate(40px, 0px) rotate(14deg);
 }
 .player-option:nth-child(3):hover .extra-card {
-    transform: translate(45px, 5px) rotate(18deg);
+    transform: translate(0px, 10px) rotate(-2deg);
+}
+.player-option:nth-child(3):hover .extra-card-2 {
+    opacity: 1;
+    transform: translate(0, -55px) scale(1.05) rotate(0deg);
+    z-index: -1;
 }
 
 /* Online option card style */
 .player-option.online-option {
     color: #00ff00;
 }
-.player-option.online-option::before,
+
+/* Online mode: 3 cards revealed on hover (yellow, blue, purple) */
+.player-option.online-option::before {
+    background: #ffcc00;
+    content: 'ON';
+}
 .player-option.online-option::after {
-    background: #006600;
+    background: #0066ff;
+    content: 'LI';
+}
+.player-option.online-option .extra-card {
+    background: #9900cc;
+    content: 'NE';
+}
+
+/* Default stacked state for online cards */
+.player-option.online-option::before {
+    transform: translate(4px, 4px) rotate(2deg);
+}
+.player-option.online-option::after {
+    transform: translate(8px, 8px) rotate(4deg);
+}
+.player-option.online-option .extra-card {
+    transform: translate(12px, 12px) rotate(6deg);
+}
+
+/* Online hover spread */
+.player-option.online-option:hover::before {
+    transform: translate(-45px, -5px) rotate(-22deg);
+}
+.player-option.online-option:hover::after {
+    transform: translate(0px, -10px) rotate(-2deg);
+}
+.player-option.online-option:hover .extra-card {
+    transform: translate(45px, 5px) rotate(18deg);
 }
 
 .player-icons {
@@ -678,89 +748,7 @@ body:has(.player-option:hover) .title-jeopardy .exclamation {
     display: none;
 }
 
-/* ==================== 2 PLAYER GAME PAGE ==================== */
-
-/* CSS-only Preloader */
-.preloader {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: #ff0000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    animation: fadeOut 0.5s ease-out 1.5s forwards;
-    pointer-events: none;
-}
-
-@keyframes fadeOut {
-    to {
-        opacity: 0;
-        visibility: hidden;
-    }
-}
-
-.preloader-logo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 40px;
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-
-    50% {
-        transform: scale(1.05);
-        opacity: 0.9;
-    }
-}
-
-.preloader-marvel {
-    background-color: black;
-    color: #ff0000;
-    padding: 10px 20px;
-    letter-spacing: 3px;
-    font-family: 'Bangers', system-ui;
-    font-size: 60px;
-}
-
-.preloader-jeopardy {
-    color: black;
-    font-size: 48px;
-    font-family: 'Six Caps', sans-serif;
-    font-weight: 100;
-}
-
-.preloader-spinner {
-    width: 60px;
-    height: 60px;
-    border: 5px solid black;
-    border-top: 5px solid #fff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
+/* ==================== GAME PAGES ==================== */
 
 body.game-page {
     display: flex;
@@ -2203,12 +2191,15 @@ body.game-page::before {
    HOVER SOUND VISUAL FEEDBACK
    ============================================================ */
 
-.hover-sound-active {
+/* Subtle ripple on hover ONLY for grid cells */
+.value-cell.hover-sound-active,
+.grid-cell.hover-sound-active {
     position: relative;
+    overflow: hidden;
 }
 
-/* Subtle ripple on hover for elements with hover sound */
-.hover-sound-active::after {
+.value-cell.hover-sound-active::after,
+.grid-cell.hover-sound-active::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -2216,13 +2207,15 @@ body.game-page::before {
     width: 0;
     height: 0;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     transform: translate(-50%, -50%);
     transition: width 0.3s ease, height 0.3s ease;
     pointer-events: none;
+    z-index: 0;
 }
 
-.hover-sound-active:hover::after {
+.value-cell.hover-sound-active:hover::after,
+.grid-cell.hover-sound-active:hover::after {
     width: 120%;
     height: 120%;
 }
@@ -2274,10 +2267,10 @@ body.game-page::before {
         width: 80px;
         height: 120px;
         font-size: 24px;
-        box-shadow: 4px 4px 0px rgba(255, 255, 255, 0.25);
+        box-shadow: 3px 3px 0px rgba(255, 255, 255, 0.2);
     }
     .player-option:hover {
-        box-shadow: 6px 6px 0px rgba(255, 255, 255, 0.35);
+        box-shadow: 4px 4px 0px rgba(255, 255, 255, 0.3);
     }
 }
 
@@ -2427,6 +2420,17 @@ body.game-page::before {
     color: rgba(0, 0, 0, 0.35);
 }
 
+/* Online card back text overrides */
+.player-option.online-option::before {
+    content: 'ON';
+}
+.player-option.online-option::after {
+    content: 'LI';
+}
+.player-option.online-option .extra-card {
+    content: 'NE';
+}
+
 .player-option:nth-child(3) .extra-card {
     content: 'M';
     display: flex;
@@ -2447,7 +2451,9 @@ body.game-page::before {
 @media screen and (max-width: 1024px) {
     .player-option::before,
     .player-option::after,
-    .player-option:nth-child(3) .extra-card {
+    .player-option:nth-child(3) .extra-card,
+    .player-option:nth-child(3) .extra-card-2,
+    .player-option.online-option .extra-card {
         font-size: 48px;
     }
 }
@@ -2455,7 +2461,9 @@ body.game-page::before {
 @media screen and (max-width: 768px) {
     .player-option::before,
     .player-option::after,
-    .player-option:nth-child(3) .extra-card {
+    .player-option:nth-child(3) .extra-card,
+    .player-option:nth-child(3) .extra-card-2,
+    .player-option.online-option .extra-card {
         font-size: 36px;
     }
 }
@@ -2463,7 +2471,9 @@ body.game-page::before {
 @media screen and (max-width: 480px) {
     .player-option::before,
     .player-option::after,
-    .player-option:nth-child(3) .extra-card {
+    .player-option:nth-child(3) .extra-card,
+    .player-option:nth-child(3) .extra-card-2,
+    .player-option.online-option .extra-card {
         font-size: 28px;
     }
     .player-option::before {
@@ -2471,12 +2481,6 @@ body.game-page::before {
     }
     .player-option::after {
         transform: translate(4px, 4px) rotate(2deg);
-    }
-    .player-option {
-        box-shadow: 4px 4px 0px rgba(255, 255, 255, 0.25);
-    }
-    .player-option:hover {
-        box-shadow: 6px 6px 0px rgba(255, 255, 255, 0.35);
     }
 }
 
@@ -2544,5 +2548,51 @@ body.game-page::before {
 @media screen and (max-width: 480px) {
     body.game-page .title {
         margin-bottom: 8px;
+    }
+}
+
+
+/* ============================================================
+   ACTION STRIPES - diagonal comic lines
+   ============================================================ */
+
+.action-stripes {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.04;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 40px,
+        #000 40px,
+        #000 42px
+    );
+}
+
+/* ============================================================
+   FLOATING CIRCLES animation tweaks
+   ============================================================ */
+
+.comic-burst svg circle {
+    animation: floatBurst 20s ease-in-out infinite;
+}
+
+/* ============================================================
+   MOBILE PRELOADER FIXES
+   ============================================================ */
+
+/* Ensure preloader stays on top of everything on mobile */
+@media screen and (max-width: 768px) {
+    .preloader {
+        z-index: 100000;
+    }
+    .preloader-loading-text {
+        font-size: 0.85em;
+        bottom: 40px;
     }
 }

@@ -2,6 +2,7 @@
 ============================================================
  MARVEL JEOPARDY - PAGE TRANSITION SYSTEM
  Comic-book style screen wipes with audio crossfades
+ Coordinated across pages via sessionStorage
 ============================================================
 */
 
@@ -18,8 +19,8 @@ const PageTransitions = {
         }
         this.panels = document.querySelectorAll('.transition-panel');
 
-        // On page load, play the "in" transition
-        this.playIn();
+        // On page load, decide whether to play the "in" transition
+        this.handlePageEntry();
     },
 
     // Create overlay if not present in HTML
@@ -36,25 +37,25 @@ const PageTransitions = {
         this.panels = this.overlay.querySelectorAll('.transition-panel');
     },
 
+    // Decide what to do when a page loads
+    handlePageEntry() {
+        const cameFromTransition = sessionStorage.getItem('mj_transition_out') === '1';
+        const transitionTime = parseInt(sessionStorage.getItem('mj_transition_time') || '0');
+        const age = Date.now() - transitionTime;
+
+        // Clear the flag immediately so refreshing doesn't retrigger
+        sessionStorage.removeItem('mj_transition_out');
+        sessionStorage.removeItem('mj_transition_time');
+
+        // Only play "in" transition if we genuinely came from another page's "out"
+        if (cameFromTransition && age < 8000) {
+            this.playIn();
+        }
+    },
+
     // Play transition IN (revealing page) on load
     playIn() {
         if (!this.overlay) return;
-
-        // Don't play in-transition if preloader is still active
-        const preloader = document.querySelector('.preloader');
-        if (preloader && !preloader.classList.contains('preloader-hidden')) {
-            // Wait for preloader to hide, then play in-transition
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.target.classList.contains('preloader-hidden')) {
-                        observer.disconnect();
-                        setTimeout(() => this.playIn(), 100);
-                    }
-                });
-            });
-            observer.observe(preloader, { attributes: true, attributeFilter: ['class'] });
-            return;
-        }
 
         this.overlay.classList.add('transition-active');
         document.body.classList.add('page-transitioning');
@@ -90,6 +91,10 @@ const PageTransitions = {
             return;
         }
 
+        // Set flag so next page knows to play "in" transition
+        sessionStorage.setItem('mj_transition_out', '1');
+        sessionStorage.setItem('mj_transition_time', Date.now().toString());
+
         this.overlay.classList.add('transition-active');
         document.body.classList.add('page-transitioning');
 
@@ -113,18 +118,48 @@ const PageTransitions = {
         }, 700);
     },
 
+    // Fade out homepage background music manually
+    fadeOutHomepageMusic(duration = 600) {
+        const bgMusic = document.getElementById('bgMusic');
+        if (!bgMusic || bgMusic.paused) return Promise.resolve();
+
+        return new Promise((resolve) => {
+            const startVolume = bgMusic.volume;
+            const steps = 20;
+            const stepTime = duration / steps;
+            const volumeStep = startVolume / steps;
+            let currentStep = 0;
+
+            const fadeInterval = setInterval(() => {
+                currentStep++;
+                bgMusic.volume = Math.max(0, startVolume - (volumeStep * currentStep));
+                if (currentStep >= steps) {
+                    clearInterval(fadeInterval);
+                    bgMusic.volume = 0;
+                    bgMusic.pause();
+                    resolve();
+                }
+            }, stepTime);
+        });
+    },
+
     // Navigate with audio fade and transition
     navigateTo(url) {
         if (this.transitioning) return;
 
-        // Fade out audio if AudioManager exists
+        const audioFadePromises = [];
+
+        // Fade out AudioManager if playing
         if (typeof AudioManager !== 'undefined' && AudioManager.isPlaying && AudioManager.isPlaying()) {
-            AudioManager.fadeOut(600).then(() => {
-                this.playOut(url);
-            });
-        } else {
-            this.playOut(url);
+            audioFadePromises.push(AudioManager.fadeOut(600));
         }
+
+        // Fade out homepage raw bgMusic if playing
+        audioFadePromises.push(this.fadeOutHomepageMusic(600));
+
+        Promise.all(audioFadePromises).then(() => {
+            this.playOut(url);
+        });
     },
 
     // Setup click interception for links with data-transition attribute
@@ -145,11 +180,17 @@ const PageTransitions = {
     }
 };
 
-// Inject background artifacts on game pages
+// ============================================================
+// BACKGROUND ARTIFACTS - Rich comic-book decorations
+// ============================================================
+
 function injectBackgroundArtifacts() {
     if (!document.body.classList.contains('game-page')) return;
     if (document.querySelector('.speed-lines')) return;
 
+    const isDesktop = window.innerWidth >= 1024;
+
+    // Comic bursts / stars
     const bursts = [
         { style: 'top:5%;left:5%;width:120px;height:120px;animation-delay:0s;', shape: 'star' },
         { style: 'top:15%;right:10%;width:80px;height:80px;animation-delay:-5s;', shape: 'burst' },
@@ -157,11 +198,22 @@ function injectBackgroundArtifacts() {
         { style: 'bottom:10%;right:5%;width:140px;height:140px;animation-delay:-15s;', shape: 'burst' }
     ];
 
+    // More bursts for desktop to fill empty space
+    if (isDesktop) {
+        bursts.push(
+            { style: 'top:40%;left:2%;width:60px;height:60px;animation-delay:-3s;', shape: 'burst' },
+            { style: 'top:60%;right:3%;width:90px;height:90px;animation-delay:-7s;', shape: 'star' },
+            { style: 'top:25%;left:85%;width:70px;height:70px;animation-delay:-12s;', shape: 'burst' },
+            { style: 'bottom:35%;left:12%;width:110px;height:110px;animation-delay:-18s;', shape: 'star' },
+            { style: 'top:8%;left:45%;width:50px;height:50px;animation-delay:-2s;', shape: 'burst' },
+            { style: 'bottom:8%;left:55%;width:65px;height:65px;animation-delay:-9s;', shape: 'star' }
+        );
+    }
+
     bursts.forEach(b => {
         const div = document.createElement('div');
         div.className = 'comic-burst';
         div.style.cssText = b.style;
-        // Simple SVG shapes
         if (b.shape === 'star') {
             div.innerHTML = `<svg viewBox="0 0 100 100"><polygon points="50,5 61,35 95,35 68,55 79,85 50,65 21,85 32,55 5,35 39,35"/></svg>`;
         } else {
@@ -170,6 +222,7 @@ function injectBackgroundArtifacts() {
         document.body.appendChild(div);
     });
 
+    // Speed lines in corners
     const sl1 = document.createElement('div');
     sl1.className = 'speed-lines speed-lines-top-left';
     document.body.appendChild(sl1);
@@ -177,6 +230,30 @@ function injectBackgroundArtifacts() {
     const sl2 = document.createElement('div');
     sl2.className = 'speed-lines speed-lines-bottom-right';
     document.body.appendChild(sl2);
+
+    // Extra floating circles for desktop
+    if (isDesktop) {
+        const circles = [
+            { style: 'top:10%;left:30%;width:40px;height:40px;animation-delay:0s;', color: 'rgba(0,0,0,0.06)' },
+            { style: 'top:70%;left:75%;width:60px;height:60px;animation-delay:-4s;', color: 'rgba(0,0,0,0.05)' },
+            { style: 'top:45%;left:90%;width:35px;height:35px;animation-delay:-8s;', color: 'rgba(0,0,0,0.07)' },
+            { style: 'top:80%;left:25%;width:50px;height:50px;animation-delay:-14s;', color: 'rgba(0,0,0,0.05)' },
+            { style: 'top:30%;left:15%;width:30px;height:30px;animation-delay:-6s;', color: 'rgba(0,0,0,0.06)' }
+        ];
+        circles.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'comic-burst';
+            div.style.cssText = c.style;
+            div.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45"/></svg>`;
+            div.querySelector('svg').style.fill = c.color;
+            document.body.appendChild(div);
+        });
+    }
+
+    // Diagonal action stripes (subtle)
+    const stripes = document.createElement('div');
+    stripes.className = 'action-stripes';
+    document.body.appendChild(stripes);
 }
 
 // Auto-initialize when DOM is ready
