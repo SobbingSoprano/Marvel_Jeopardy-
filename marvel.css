@@ -412,6 +412,7 @@ body {
     font-family: 'Bungee', cursive;
     letter-spacing: 2px;
     overflow: visible;
+    z-index: 0;
 }
 
 /* Red card backs behind main card */
@@ -447,12 +448,6 @@ body {
     border-color: #fff;
     box-shadow: 7px 7px 0px rgba(255, 255, 255, 0.35);
     z-index: 10;
-}
-
-/* Ensure main card sits above its back cards at all times */
-.player-option > *:not(.extra-card):not(.extra-card-2) {
-    position: relative;
-    z-index: 2;
 }
 
 /* 2P: only 1 card behind — hide the second pseudo-element so nothing vanishes on hover */

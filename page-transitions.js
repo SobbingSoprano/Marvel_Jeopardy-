@@ -71,14 +71,14 @@ const PageTransitions = {
 
         this.panels.forEach((panel, i) => {
             const direction = i % 2 === 0 ? '-100%' : '100%';
-            panel.style.transition = `transform 0.5s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.06}s`;
+            panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
             panel.style.transform = `translateY(${direction})`;
         });
 
         setTimeout(() => {
             this.overlay.classList.remove('transition-active');
             document.body.classList.remove('page-transitioning');
-        }, 900);
+        }, 2900);
     },
 
     // Play transition OUT (covering screen) then navigate
@@ -108,14 +108,14 @@ const PageTransitions = {
         void this.overlay.offsetWidth;
 
         this.panels.forEach((panel, i) => {
-            panel.style.transition = `transform 0.5s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.06}s`;
+            panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
             panel.style.transform = 'translateY(0)';
         });
 
         // Wait for panels to cover, then navigate
         setTimeout(() => {
             window.location.href = url;
-        }, 700);
+        }, 2500);
     },
 
     // Fade out homepage background music manually
