@@ -22,6 +22,8 @@
     
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
+    <script src="page-transitions.js"></script>
+    <script src="visual-effects.js"></script>
     
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
@@ -47,11 +49,20 @@
             <span class="preloader-jeopardy">Jeopardy!</span>
         </div>
         <div class="preloader-spinner"></div>
+        <div class="preloader-loading-text">Assembling the Avengers...</div>
     </div>
+
+    <!-- Audio Placeholders -->
+    <audio id="preloader-sfx" preload="auto">
+        <source src="Assets/Sounds/preloader-ambient.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="hover-sfx" preload="auto">
+        <source src="Assets/Sounds/hover-click.mp3" type="audio/mpeg">
+    </audio>
 
     <!-- Title -->
     <div class="title">
-        <a href="index.html" class="title-wrapper" id="resetLink">
+        <a href="index.html" class="title-wrapper" id="resetLink" data-transition>
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
@@ -239,14 +250,14 @@
         document.addEventListener('DOMContentLoaded', async function() {
             const roomCode = sessionStorage.getItem('mp_roomCode');
             if (!roomCode) {
-                window.location.href = 'lobby.html';
+                PageTransitions.navigateTo('lobby.html');
                 return;
             }
 
             const success = await MultiplayerManager.rejoinRoom();
             if (!success) {
                 alert('Could not rejoin room. Returning to lobby.');
-                window.location.href = 'lobby.html';
+                PageTransitions.navigateTo('lobby.html');
                 return;
             }
 
@@ -260,7 +271,7 @@
             gameState = newState;
             
             if (gameState.stage === 'final_jeopardy') {
-                window.location.href = 'final_jeopardy_mp.html';
+                PageTransitions.navigateTo('final_jeopardy_mp.html');
                 return;
             }
 
@@ -279,7 +290,7 @@
         function updatePlayerDisplay() {
             for (let i = 1; i <= NUM_PLAYERS; i++) {
                 document.getElementById(`player${i}Name`).textContent = gameState.playerNames[i] || `Player ${i}`;
-                document.getElementById(`player${i}Score`).textContent = `$${gameState.playerScores[i] || 0}`;
+                ScoreAnimator.setScore(`player${i}Score`, gameState.playerScores[i] || 0);
                 
                 const turnEl = document.getElementById(`player${i}Turn`);
                 const blockEl = document.getElementById(`player${i}Block`);
@@ -414,6 +425,10 @@
             document.getElementById('ddMaxWager').textContent = maxWager;
             document.getElementById('wagerInput').max = maxWager;
             document.getElementById('wagerInput').value = maxWager;
+            
+            // Screen shake & flash for Daily Double reveal
+            ScreenEffects.shake('medium');
+            ScreenEffects.flash('red');
         }
 
         function showQuestionForm(q) {
@@ -440,6 +455,10 @@
             document.getElementById('feedbackPlayer').textContent = `${gameState.playerNames[feedback.player]} answered: "${feedback.userAnswer}"`;
             let feedbackText = feedback.isCorrect ? `+$${feedback.points}` : `-$${feedback.points}<br>Correct answer: ${feedback.correctAnswer}`;
             document.getElementById('feedbackText').innerHTML = feedbackText;
+            
+            // Screen effects on answer feedback
+            ScreenEffects.shake(feedback.isCorrect ? 'light' : 'medium');
+            ScreenEffects.flash(feedback.isCorrect ? 'green' : 'red');
         }
 
         async function selectCell(category, value, isDailyDouble) {
@@ -492,7 +511,7 @@
             e.preventDefault();
             if (confirm('Are you sure you want to leave the game?')) {
                 await MultiplayerManager.leaveRoom();
-                window.location.href = 'index.html';
+                PageTransitions.navigateTo('index.html');
             }
         });
 

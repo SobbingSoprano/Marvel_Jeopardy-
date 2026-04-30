@@ -19,6 +19,8 @@
     
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
+    <script src="page-transitions.js"></script>
+    <script src="visual-effects.js"></script>
     
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
@@ -39,10 +41,19 @@
             <span class="preloader-jeopardy">Jeopardy!</span>
         </div>
         <div class="preloader-spinner"></div>
+        <div class="preloader-loading-text">Assembling the Avengers...</div>
     </div>
 
+    <!-- Audio Placeholders -->
+    <audio id="preloader-sfx" preload="auto">
+        <source src="Assets/Sounds/preloader-ambient.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="hover-sfx" preload="auto">
+        <source src="Assets/Sounds/hover-click.mp3" type="audio/mpeg">
+    </audio>
+
 <div class="title">
-    <a href="index.html" class="title-wrapper">
+    <a href="index.html" class="title-wrapper" data-transition>
         <span class="title-marvel">MARVEL</span>
         <span class="title-jeopardy">Jeopardy!</span>
     </a>
@@ -85,7 +96,7 @@
         <h2 class="guess-title">Winner:</h2>
         <div class="question-text" id="winnerDisplay" style="font-size: 2em; color: #00ff00;"></div>
 
-        <a href="index.html" class="submit-btn" id="returnBtn" style="margin-top: 20px;">Return to Main Menu</a>
+        <a href="index.html" class="submit-btn" id="returnBtn" style="margin-top: 20px;" data-transition>Return to Main Menu</a>
     </div>
 </div>
 
@@ -93,7 +104,7 @@
     // Check if game state exists
     let gameState = GameState.load();
     if (!gameState || !gameState.playerNames || !gameState.playerScores) {
-        window.location.href = 'index.html';
+        PageTransitions.navigateTo('index.html');
     }
 
     // Initialize final jeopardy state
@@ -210,6 +221,9 @@
 
         document.getElementById('winnerDisplay').textContent = winners.join(' & ');
         document.getElementById('resultsScreen').style.display = 'flex';
+        
+        // Dramatic flash on results reveal
+        ScreenEffects.flash('white');
     }
 
     // Wager form submission

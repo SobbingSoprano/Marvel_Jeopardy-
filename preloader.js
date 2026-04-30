@@ -6,124 +6,183 @@
 */
 
 const Preloader = {
-    minDisplayTime: 1000, // Minimum time to show preloader (ms)
+    minDisplayTime: 2000, // Minimum time to show preloader (ms)
+    globalTimeout: 45000, // Absolute maximum wait time (45s)
     startTime: Date.now(),
-    
+    quipInterval: null,
+
+    // Marvel-themed loading quips
+    quips: [
+        "Assembling the Avengers...",
+        "Wakanda tech loading...",
+        "Tony Stark is still coding this...",
+        "Hulk SMASH... bugs!",
+        "Spider-sense tingling...",
+        "Shields up! Loading assets...",
+        "Thanos is snapping... patience required",
+        "Professor X is reading your mind...",
+        "Deadpool is breaking the 4th wall...",
+        "Thor is charging his lightning...",
+        "Hint: Daily Doubles are no joke!",
+        "Remember: What is... [your answer here]",
+        "Even Captain America had to wait for the super serum",
+        "Nick Fury is recruiting players...",
+        "Ant-Man is shrinking the load times...",
+        "Doctor Strange saw 14 million futures. This is the good one.",
+        "Galactus is snacking while we load...",
+        "The X-Men are syncing Cerebro...",
+        "Black Panther never freezes... unlike some browsers",
+        "Magneto is pulling the files together...",
+        "Did you know? Stan Lee cameoed in every loading screen",
+        "Star-Lord is dancing while we buffer...",
+        "Vibranium doesn't download itself",
+        "Groot says: I am Groot! (Translation: Loading...)",
+        "Loki is misdirecting the bugs away..."
+    ],
+
     // Initialize preloader
     init() {
-        // Ensure preloader is visible immediately
         const preloader = document.querySelector('.preloader');
         if (preloader) {
             preloader.style.opacity = '1';
             preloader.style.visibility = 'visible';
+            preloader.style.pointerEvents = 'all';
         }
-        
-        // Start loading assets
+
+        this.startQuips();
+        this.playPreloaderAudio();
         this.loadAssets();
     },
-    
+
+    // Cycle through loading quips
+    startQuips() {
+        const quipEl = document.querySelector('.preloader-loading-text');
+        if (!quipEl) return;
+
+        let currentIndex = Math.floor(Math.random() * this.quips.length);
+        quipEl.textContent = this.quips[currentIndex];
+
+        this.quipInterval = setInterval(() => {
+            quipEl.classList.add('quip-fade-out');
+            setTimeout(() => {
+                currentIndex = (currentIndex + 1) % this.quips.length;
+                quipEl.textContent = this.quips[currentIndex];
+                quipEl.classList.remove('quip-fade-out');
+                quipEl.classList.add('quip-fade-in');
+                setTimeout(() => quipEl.classList.remove('quip-fade-in'), 500);
+            }, 500);
+        }, 3500);
+    },
+
+    // Play preloader ambient sound if available
+    playPreloaderAudio() {
+        const sfx = document.getElementById('preloader-sfx');
+        if (sfx) {
+            sfx.volume = 0.3;
+            const playPromise = sfx.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {});
+            }
+        }
+    },
+
+    // Stop preloader audio
+    stopPreloaderAudio() {
+        const sfx = document.getElementById('preloader-sfx');
+        if (sfx) {
+            sfx.pause();
+            sfx.currentTime = 0;
+        }
+    },
+
     // Load and track all assets
     async loadAssets() {
-        // PRIORITY 1: Preload audio first (fast, critical for UX)
-        const audioPromises = [];
-        
-        // Preload AudioManager tracks if available
+        const allPromises = [];
+
+        // AudioManager preload
         if (typeof AudioManager !== 'undefined') {
             AudioManager.preloadAll();
         }
-        
+
         // Track existing audio elements
         const audios = document.querySelectorAll('audio');
         audios.forEach(audio => {
             audio.preload = 'auto';
-            audioPromises.push(this.loadAudio(audio));
+            if (audio.readyState < 3) {
+                allPromises.push(this.loadAudio(audio));
+            }
         });
-        
-        // Wait for audio to load first (with 2s timeout)
-        try {
-            await Promise.race([
-                Promise.all(audioPromises),
-                this.timeout(2000)
-            ]);
-        } catch (e) {
-            // Audio timeout, continue anyway
-        }
-        
-        // PRIORITY 2: Load other assets (videos can take longer)
-        const otherPromises = [];
-        
-        // Track video loading (wait for canplaythrough or enough data)
+
+        // Track video loading (critical - wait for enough data to play)
         const videos = document.querySelectorAll('video');
         videos.forEach(video => {
-            otherPromises.push(this.loadVideo(video));
+            allPromises.push(this.loadVideo(video));
         });
-        
+
         // Track image loading
         const images = document.querySelectorAll('img');
         images.forEach(img => {
             if (!img.complete) {
-                otherPromises.push(this.loadImage(img));
+                allPromises.push(this.loadImage(img));
             }
         });
-        
+
         // Track background images in CSS
-        otherPromises.push(this.loadBackgroundImages());
-        
+        allPromises.push(this.loadBackgroundImages());
+
         // Wait for fonts
         if (document.fonts && document.fonts.ready) {
-            otherPromises.push(document.fonts.ready);
+            allPromises.push(document.fonts.ready);
         }
-        
-        // Wait for remaining assets or timeout after 8 seconds
+
+        // Wait for ALL assets, but cap at global timeout
         try {
             await Promise.race([
-                Promise.all(otherPromises),
-                this.timeout(8000)
+                Promise.all(allPromises),
+                this.delay(this.globalTimeout)
             ]);
         } catch (e) {
-            console.log('Preloader timeout or error, continuing anyway');
+            console.log('Preloader asset error:', e);
         }
-        
-        // Ensure minimum display time
+
+        // Ensure minimum display time so the quips can be read
         const elapsed = Date.now() - this.startTime;
         if (elapsed < this.minDisplayTime) {
             await this.delay(this.minDisplayTime - elapsed);
         }
-        
+
         // Hide preloader
         this.hide();
     },
-    
-    // Load a single video
+
+    // Load a single video - wait for canplaythrough OR loadeddata with enough buffer
     loadVideo(video) {
         return new Promise((resolve) => {
-            // If already ready
             if (video.readyState >= 3) {
                 resolve();
                 return;
             }
-            
-            // Wait for canplaythrough event
-            const onReady = () => {
-                video.removeEventListener('canplaythrough', onReady);
-                video.removeEventListener('error', onError);
-                resolve();
+
+            let resolved = false;
+            const doResolve = () => {
+                if (!resolved) {
+                    resolved = true;
+                    video.removeEventListener('canplaythrough', doResolve);
+                    video.removeEventListener('loadeddata', doResolve);
+                    video.removeEventListener('error', doResolve);
+                    resolve();
+                }
             };
-            
-            const onError = () => {
-                video.removeEventListener('canplaythrough', onReady);
-                video.removeEventListener('error', onError);
-                resolve(); // Resolve anyway to not block
-            };
-            
-            video.addEventListener('canplaythrough', onReady);
-            video.addEventListener('error', onError);
-            
-            // Timeout for slow videos - resolve after 5s per video
-            setTimeout(resolve, 5000);
+
+            video.addEventListener('canplaythrough', doResolve);
+            video.addEventListener('loadeddata', doResolve); // Fallback
+            video.addEventListener('error', doResolve);
+
+            // Per-video safety timeout (generous for large files)
+            setTimeout(doResolve, 15000);
         });
     },
-    
+
     // Load a single audio
     loadAudio(audio) {
         return new Promise((resolve) => {
@@ -131,26 +190,23 @@ const Preloader = {
                 resolve();
                 return;
             }
-            
-            const onReady = () => {
-                audio.removeEventListener('canplaythrough', onReady);
-                audio.removeEventListener('error', onError);
-                resolve();
+
+            let resolved = false;
+            const doResolve = () => {
+                if (!resolved) {
+                    resolved = true;
+                    audio.removeEventListener('canplaythrough', doResolve);
+                    audio.removeEventListener('error', doResolve);
+                    resolve();
+                }
             };
-            
-            const onError = () => {
-                audio.removeEventListener('canplaythrough', onReady);
-                audio.removeEventListener('error', onError);
-                resolve();
-            };
-            
-            audio.addEventListener('canplaythrough', onReady);
-            audio.addEventListener('error', onError);
-            
-            setTimeout(resolve, 3000);
+
+            audio.addEventListener('canplaythrough', doResolve);
+            audio.addEventListener('error', doResolve);
+            setTimeout(doResolve, 5000);
         });
     },
-    
+
     // Load a single image
     loadImage(img) {
         return new Promise((resolve) => {
@@ -158,24 +214,23 @@ const Preloader = {
                 resolve();
                 return;
             }
-            
+
             img.addEventListener('load', resolve, { once: true });
             img.addEventListener('error', resolve, { once: true });
-            
-            setTimeout(resolve, 3000);
+            setTimeout(resolve, 5000);
         });
     },
-    
+
     // Load background images
     loadBackgroundImages() {
         return new Promise((resolve) => {
             const elements = document.querySelectorAll('*');
             const bgPromises = [];
-            
+
             elements.forEach(el => {
                 const style = getComputedStyle(el);
                 const bgImage = style.backgroundImage;
-                
+
                 if (bgImage && bgImage !== 'none') {
                     const urlMatch = bgImage.match(/url\(["']?(.+?)["']?\)/);
                     if (urlMatch && urlMatch[1]) {
@@ -183,7 +238,7 @@ const Preloader = {
                     }
                 }
             });
-            
+
             if (bgPromises.length === 0) {
                 resolve();
             } else {
@@ -191,7 +246,7 @@ const Preloader = {
             }
         });
     },
-    
+
     // Load image from URL
     loadImageUrl(url) {
         return new Promise((resolve) => {
@@ -199,31 +254,29 @@ const Preloader = {
             img.onload = resolve;
             img.onerror = resolve;
             img.src = url;
-            setTimeout(resolve, 3000);
+            setTimeout(resolve, 5000);
         });
     },
-    
+
     // Hide the preloader with fade effect
     hide() {
+        if (this.quipInterval) {
+            clearInterval(this.quipInterval);
+        }
+        this.stopPreloaderAudio();
+
         const preloader = document.querySelector('.preloader');
         if (preloader) {
             preloader.classList.add('preloader-hidden');
-            
-            // Remove from DOM after animation
             setTimeout(() => {
                 preloader.style.display = 'none';
-            }, 500);
+            }, 600);
         }
     },
-    
+
     // Utility: delay
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
-    },
-    
-    // Utility: timeout
-    timeout(ms) {
-        return new Promise((_, reject) => setTimeout(() => reject('timeout'), ms));
     }
 };
 

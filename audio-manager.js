@@ -245,9 +245,60 @@ const AudioManager = {
     }
 };
 
+// Hover sound system
+const HoverSound = {
+    audio: null,
+    enabled: true,
+
+    init() {
+        this.audio = document.getElementById('hover-sfx');
+        if (!this.audio) return;
+
+        // Attach to all interactive elements
+        const selectors = 'button, .player-option, .value-cell, .buzzer-box, .submit-btn, .cancel-btn, .start-btn, a:not([href^="http"])';
+        const elements = document.querySelectorAll(selectors);
+        elements.forEach(el => {
+            if (el.dataset.hoverSoundAttached) return;
+            el.dataset.hoverSoundAttached = 'true';
+            el.addEventListener('mouseenter', () => this.play());
+            el.addEventListener('focus', () => this.play());
+            el.classList.add('hover-sound-active');
+        });
+
+        // Re-scan periodically for dynamically added elements
+        setInterval(() => this.scan(), 2000);
+    },
+
+    scan() {
+        if (!this.audio) return;
+        const selectors = 'button:not([data-hover-sound-attached]), .player-option:not([data-hover-sound-attached]), .value-cell:not([data-hover-sound-attached]), .buzzer-box:not([data-hover-sound-attached]), .submit-btn:not([data-hover-sound-attached]), .cancel-btn:not([data-hover-sound-attached]), .start-btn:not([data-hover-sound-attached]), a:not([href^="http"]):not([data-hover-sound-attached])';
+        const elements = document.querySelectorAll(selectors);
+        elements.forEach(el => {
+            el.dataset.hoverSoundAttached = 'true';
+            el.addEventListener('mouseenter', () => this.play());
+            el.addEventListener('focus', () => this.play());
+            el.classList.add('hover-sound-active');
+        });
+    },
+
+    play() {
+        if (!this.enabled || !this.audio) return;
+        this.audio.currentTime = 0;
+        this.audio.volume = 0.4;
+        const promise = this.audio.play();
+        if (promise !== undefined) {
+            promise.catch(() => {});
+        }
+    }
+};
+
 // Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => AudioManager.init());
+    document.addEventListener('DOMContentLoaded', () => {
+        AudioManager.init();
+        HoverSound.init();
+    });
 } else {
     AudioManager.init();
+    HoverSound.init();
 }

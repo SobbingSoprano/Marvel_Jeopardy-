@@ -19,6 +19,8 @@
     
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
+    <script src="page-transitions.js"></script>
+    <script src="visual-effects.js"></script>
     
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
@@ -44,10 +46,19 @@
             <span class="preloader-jeopardy">Jeopardy!</span>
         </div>
         <div class="preloader-spinner"></div>
+        <div class="preloader-loading-text">Assembling the Avengers...</div>
     </div>
 
+    <!-- Audio Placeholders -->
+    <audio id="preloader-sfx" preload="auto">
+        <source src="Assets/Sounds/preloader-ambient.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="hover-sfx" preload="auto">
+        <source src="Assets/Sounds/hover-click.mp3" type="audio/mpeg">
+    </audio>
+
     <div class="title">
-        <a href="index.html" class="title-wrapper">
+        <a href="index.html" class="title-wrapper" data-transition>
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
@@ -129,14 +140,14 @@
             AudioManager.play('overtime');
             const roomCode = sessionStorage.getItem('mp_roomCode');
             if (!roomCode) {
-                window.location.href = 'lobby.html';
+                PageTransitions.navigateTo('lobby.html');
                 return;
             }
 
             const success = await MultiplayerManager.rejoinRoom();
             if (!success) {
                 alert('Could not rejoin room. Returning to lobby.');
-                window.location.href = 'lobby.html';
+                PageTransitions.navigateTo('lobby.html');
                 return;
             }
 
@@ -188,7 +199,7 @@
             
             document.getElementById('wagerPlayerInfo').textContent = 
                 `${gameState.playerNames[myPlayerNumber]}, enter your wager:`;
-            document.getElementById('myCurrentScore').textContent = myScore;
+            ScoreAnimator.setScore('myCurrentScore', myScore);
             document.getElementById('myMaxWager').textContent = maxWager;
             document.getElementById('wagerInput').max = maxWager;
             
@@ -261,6 +272,9 @@
             }
 
             document.getElementById('winnerDisplay').textContent = winners.join(' & ');
+            
+            // Dramatic flash on results reveal
+            ScreenEffects.flash('white');
         }
 
         // Wager form submission
@@ -285,7 +299,7 @@
         document.getElementById('returnBtn').addEventListener('click', async function(e) {
             e.preventDefault();
             await MultiplayerManager.leaveRoom();
-            window.location.href = 'lobby.html';
+            PageTransitions.navigateTo('lobby.html');
         });
 
         function hideAllScreens() {

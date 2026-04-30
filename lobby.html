@@ -21,6 +21,8 @@
     
     <!-- Preloader Script -->
     <script src="preloader.js"></script>
+    <script src="page-transitions.js"></script>
+    <script src="visual-effects.js"></script>
     
     <!-- Audio Manager -->
     <script src="audio-manager.js"></script>
@@ -47,11 +49,20 @@
             <span class="preloader-jeopardy">Jeopardy!</span>
         </div>
         <div class="preloader-spinner"></div>
+        <div class="preloader-loading-text">Assembling the Avengers...</div>
     </div>
+
+    <!-- Audio Placeholders -->
+    <audio id="preloader-sfx" preload="auto">
+        <source src="Assets/Sounds/preloader-ambient.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="hover-sfx" preload="auto">
+        <source src="Assets/Sounds/hover-click.mp3" type="audio/mpeg">
+    </audio>
 
     <!-- Title -->
     <div class="title">
-        <a href="index.html" class="title-wrapper">
+        <a href="index.html" class="title-wrapper" data-transition>
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
@@ -72,7 +83,7 @@
                 <li>Enable Realtime Database (in test mode)</li>
                 <li>Update <code>firebase-config.js</code> with your values</li>
             </ol>
-            <a href="index.html" class="cancel-btn">Back to Home</a>
+            <a href="index.html" class="cancel-btn" data-transition>Back to Home</a>
         </div>
     </div>
 
@@ -92,7 +103,7 @@
             </div>
 
             <div style="margin-top: 20px;">
-                <a href="index.html" class="cancel-btn">Back to Home</a>
+                <a href="index.html" class="cancel-btn" data-transition>Back to Home</a>
             </div>
         </div>
     </div>
@@ -322,7 +333,7 @@
                     
                     if (roomState.status === 'playing') {
                         // Game in progress, redirect to game page
-                        window.location.href = `${currentPlayerCount}P_mp.html`;
+                        PageTransitions.navigateTo(`${currentPlayerCount}P_mp.html`);
                     } else if (roomState.status === 'waiting') {
                         showWaitingRoom(MultiplayerManager.roomCode, MultiplayerManager.isHost);
                     } else {
@@ -379,13 +390,13 @@
         async function startMultiplayerGame() {
             const success = await MultiplayerManager.startGame();
             if (success) {
-                window.location.href = `${currentPlayerCount}P_mp.html`;
+                PageTransitions.navigateTo(`${currentPlayerCount}P_mp.html`);
             }
         }
 
         // Game started callback (for non-hosts)
         function onGameStarted() {
-            window.location.href = `${currentPlayerCount}P_mp.html`;
+            PageTransitions.navigateTo(`${currentPlayerCount}P_mp.html`);
         }
 
         // Leave room
