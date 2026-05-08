@@ -50,17 +50,25 @@ const PageTransitions = {
         // Only play "in" transition if we genuinely came from another page's "out"
         if (cameFromTransition && age < 8000) {
             this.playIn();
+        } else {
+            // Normal page load: just hide preloader when loading is done
+            if (typeof Preloader !== 'undefined' && Preloader.waitForLoad) {
+                Preloader.waitForLoad().then(() => {
+                    Preloader.hide();
+                });
+            }
         }
     },
 
     // Play transition IN (revealing page) on load
+    // Coordinated with Preloader: cover -> load -> reveal
     playIn() {
         if (!this.overlay) return;
 
         this.overlay.classList.add('transition-active');
         document.body.classList.add('page-transitioning');
 
-        // Panels start covering screen, then slide away
+        // Panels start covering screen
         this.panels.forEach((panel, i) => {
             panel.style.transform = 'translateY(0)';
             panel.style.transition = 'none';
@@ -69,16 +77,49 @@ const PageTransitions = {
         // Force reflow
         void this.overlay.offsetWidth;
 
-        this.panels.forEach((panel, i) => {
-            const direction = i % 2 === 0 ? '-100%' : '100%';
-            panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
-            panel.style.transform = `translateY(${direction})`;
-        });
+        // Temporarily hide preloader so it doesn't peek through
+        const preloader = document.querySelector('.preloader');
+        if (preloader) {
+            preloader.style.transition = 'none';
+            preloader.classList.remove('preloader-hidden');
+            preloader.style.opacity = '0';
+            preloader.style.visibility = 'hidden';
+        }
 
+        // Allow panels to settle, then fade in preloader for loading phase
         setTimeout(() => {
-            this.overlay.classList.remove('transition-active');
-            document.body.classList.remove('page-transitioning');
-        }, 2900);
+            if (preloader) {
+                preloader.style.transition = 'opacity 0.5s ease-out, visibility 0.5s ease-out';
+                preloader.style.opacity = '1';
+                preloader.style.visibility = 'visible';
+            }
+
+            // Wait for preloader to finish asset loading
+            const waitForPreloader = (typeof Preloader !== 'undefined' && Preloader.waitForLoad)
+                ? Preloader.waitForLoad()
+                : Promise.resolve();
+
+            waitForPreloader.then(() => {
+                // Fade out preloader before revealing page
+                const fadeOutPromise = (typeof Preloader !== 'undefined' && Preloader.hide)
+                    ? Preloader.hide()
+                    : Promise.resolve();
+
+                fadeOutPromise.then(() => {
+                    // Now animate panels away to reveal the page
+                    this.panels.forEach((panel, i) => {
+                        const direction = i % 2 === 0 ? '-100%' : '100%';
+                        panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
+                        panel.style.transform = `translateY(${direction})`;
+                    });
+
+                    setTimeout(() => {
+                        this.overlay.classList.remove('transition-active');
+                        document.body.classList.remove('page-transitioning');
+                    }, 2900);
+                });
+            });
+        }, 300); // Small delay so panels have covered screen before preloader fades in
     },
 
     // Play transition OUT (covering screen) then navigate

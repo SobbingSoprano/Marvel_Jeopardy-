@@ -10,6 +10,10 @@ const Preloader = {
     globalTimeout: window.innerWidth < 768 ? 12000 : 25000, // Shorter timeout on mobile
     startTime: Date.now(),
     quipInterval: null,
+    loadPromise: null,
+    loadResolve: null,
+    autoHide: false,
+    _hidden: false,
 
     // Marvel-themed loading quips
     quips: [
@@ -49,9 +53,18 @@ const Preloader = {
             preloader.style.pointerEvents = 'all';
         }
 
+        this.loadPromise = new Promise(resolve => {
+            this.loadResolve = resolve;
+        });
+
         this.startQuips();
         this.playPreloaderAudio();
         this.loadAssets();
+    },
+
+    // Wait for loading to complete
+    waitForLoad() {
+        return this.loadPromise || Promise.resolve();
     },
 
     // Cycle through loading quips
@@ -151,8 +164,16 @@ const Preloader = {
             await this.delay(this.minDisplayTime - elapsed);
         }
 
-        // Hide preloader
-        this.hide();
+        // Resolve load promise so PageTransitions can coordinate
+        if (this.loadResolve) {
+            this.loadResolve();
+            this.loadResolve = null;
+        }
+
+        // Auto-hide only if no one else is controlling timing
+        if (this.autoHide) {
+            this.hide();
+        }
     },
 
     // Load a single video - wait for canplaythrough OR loadeddata with enough buffer
@@ -258,19 +279,44 @@ const Preloader = {
         });
     },
 
-    // Hide the preloader with fade effect
+    // Hide the preloader with fade effect (returns a Promise)
     hide() {
+        if (this._hidden) return Promise.resolve();
+        this._hidden = true;
+
         if (this.quipInterval) {
             clearInterval(this.quipInterval);
         }
         this.stopPreloaderAudio();
 
+        return new Promise(resolve => {
+            const preloader = document.querySelector('.preloader');
+            if (preloader) {
+                // Clear inline styles so CSS class takes effect
+                preloader.style.opacity = '';
+                preloader.style.visibility = '';
+                preloader.style.pointerEvents = '';
+                preloader.classList.add('preloader-hidden');
+                setTimeout(() => {
+                    preloader.style.display = 'none';
+                    resolve();
+                }, 600);
+            } else {
+                resolve();
+            }
+        });
+    },
+
+    // Show / fade in the preloader
+    show() {
+        this._hidden = false;
         const preloader = document.querySelector('.preloader');
         if (preloader) {
-            preloader.classList.add('preloader-hidden');
-            setTimeout(() => {
-                preloader.style.display = 'none';
-            }, 600);
+            preloader.style.display = '';
+            preloader.classList.remove('preloader-hidden');
+            preloader.style.opacity = '1';
+            preloader.style.visibility = 'visible';
+            preloader.style.pointerEvents = 'all';
         }
     },
 

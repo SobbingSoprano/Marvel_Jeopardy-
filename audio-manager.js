@@ -245,7 +245,77 @@ const AudioManager = {
     }
 };
 
-// Hover sound system
+// Sound Effects System (click, card hovers, unhover)
+const SoundEffects = {
+    sounds: {},
+    enabled: true,
+
+    init() {
+        this.preload('click', 'Assets/Sounds/click.wav');
+        this.preload('unhover', 'Assets/Sounds/unhover.wav');
+        this.preload('hover-2p', 'Assets/Sounds/2p hover.wav');
+        this.preload('hover-3p', 'Assets/Sounds/3p hover.wav');
+        this.preload('hover-4p', 'Assets/Sounds/4p hover.wav');
+        this.preload('hover-online', 'Assets/Sounds/Online hover.wav');
+
+        this.setupClickSound();
+        this.setupCardHoverSounds();
+    },
+
+    preload(name, url) {
+        const audio = new Audio();
+        audio.preload = 'auto';
+        audio.src = url;
+        audio.load();
+        this.sounds[name] = audio;
+    },
+
+    play(name) {
+        if (!this.enabled) return;
+        const audio = this.sounds[name];
+        if (!audio) return;
+
+        // Clone to allow overlapping playback and avoid cutting off
+        const clone = audio.cloneNode();
+        clone.volume = 0.5;
+        const promise = clone.play();
+        if (promise !== undefined) {
+            promise.catch(() => {});
+        }
+    },
+
+    setupClickSound() {
+        document.addEventListener('click', (e) => {
+            if (e.button !== 0) return; // Only left-clicks
+            this.play('click');
+        });
+    },
+
+    setupCardHoverSounds() {
+        const cards = document.querySelectorAll('.player-option');
+        cards.forEach(card => {
+            const label = card.querySelector('.player-number')?.textContent?.trim();
+            let soundName = null;
+
+            if (label === '2P') soundName = 'hover-2p';
+            else if (label === '3P') soundName = 'hover-3p';
+            else if (label === '4P') soundName = 'hover-4p';
+            else if (label === 'ONLINE') soundName = 'hover-online';
+
+            if (!soundName) return;
+
+            card.addEventListener('mouseenter', () => {
+                this.play(soundName);
+            });
+
+            card.addEventListener('mouseleave', () => {
+                this.play('unhover');
+            });
+        });
+    }
+};
+
+// Hover sound system (generic - skips player cards which have their own sounds)
 const HoverSound = {
     audio: null,
     enabled: true,
@@ -254,8 +324,8 @@ const HoverSound = {
         this.audio = document.getElementById('hover-sfx');
         if (!this.audio) return;
 
-        // Attach to all interactive elements
-        const selectors = 'button, .player-option, .value-cell, .buzzer-box, .submit-btn, .cancel-btn, .start-btn, a:not([href^="http"])';
+        // Attach to all interactive elements (excluding player-option cards)
+        const selectors = 'button:not(.player-option), .value-cell, .buzzer-box, .submit-btn, .cancel-btn, .start-btn, a:not([href^="http"]):not(.player-option)';
         const elements = document.querySelectorAll(selectors);
         elements.forEach(el => {
             if (el.dataset.hoverSoundAttached) return;
@@ -271,7 +341,7 @@ const HoverSound = {
 
     scan() {
         if (!this.audio) return;
-        const selectors = 'button:not([data-hover-sound-attached]), .player-option:not([data-hover-sound-attached]), .value-cell:not([data-hover-sound-attached]), .buzzer-box:not([data-hover-sound-attached]), .submit-btn:not([data-hover-sound-attached]), .cancel-btn:not([data-hover-sound-attached]), .start-btn:not([data-hover-sound-attached]), a:not([href^="http"]):not([data-hover-sound-attached])';
+        const selectors = 'button:not([data-hover-sound-attached]):not(.player-option), .value-cell:not([data-hover-sound-attached]), .buzzer-box:not([data-hover-sound-attached]), .submit-btn:not([data-hover-sound-attached]), .cancel-btn:not([data-hover-sound-attached]), .start-btn:not([data-hover-sound-attached]), a:not([href^="http"]):not([data-hover-sound-attached]):not(.player-option)';
         const elements = document.querySelectorAll(selectors);
         elements.forEach(el => {
             el.dataset.hoverSoundAttached = 'true';
@@ -296,9 +366,11 @@ const HoverSound = {
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         AudioManager.init();
+        SoundEffects.init();
         HoverSound.init();
     });
 } else {
     AudioManager.init();
+    SoundEffects.init();
     HoverSound.init();
 }
