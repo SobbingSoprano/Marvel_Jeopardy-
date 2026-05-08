@@ -305,44 +305,84 @@ const GameState = {
         return state ? state.usedCells.length >= 30 : false;
     },
     
-    // Normalize answer for flexible matching
+    // Valid Jeopardy-style phrasing prefixes
+    validPhrases: [
+        'what is', "what's", 'who is', "who's",
+        'where is', "where's", 'when is', "when's",
+        'how is', "how's", 'why is'
+    ],
+
+    // Check if answer includes proper Jeopardy phrasing
+    validatePhrasing(answer) {
+        const lower = answer.toLowerCase().trim();
+        return this.validPhrases.some(phrase => lower.startsWith(phrase + ' '));
+    },
+
+    // Get suggested phrasing prefix based on question content
+    getSuggestedPrefix(question) {
+        const lower = question.toLowerCase();
+        if (lower.includes('who') || lower.includes('name') || lower.includes('character') || lower.includes('person') || lower.includes('leader') || lower.includes('father')) {
+            return 'Who is';
+        }
+        if (lower.includes('where') || lower.includes('city') || lower.includes('country') || lower.includes('place') || lower.includes('street')) {
+            return 'Where is';
+        }
+        if (lower.includes('when') || lower.includes('year') || lower.includes('date') || lower.includes('time')) {
+            return 'When is';
+        }
+        return 'What is';
+    },
+
+    // Normalize answer for flexible matching (preserves content after stripping prefix)
     normalizeAnswer(answer) {
         let normalized = answer.toLowerCase().trim();
-        
+
         // Remove "what is", "who is", "what's", "who's" prefixes
-        normalized = normalized.replace(/^(what is|who is|what's|who's|where is|when is)\s+/i, '');
-        
+        normalized = normalized.replace(/^(what is|who is|what's|who's|where is|when is|how is|why is|where's|when's|how's)\s+/i, '');
+
         // Remove leading articles "the", "a", "an"
         normalized = normalized.replace(/^(the|a|an)\s+/i, '');
-        
+
         // Collapse multiple spaces to single space
         normalized = normalized.replace(/\s+/g, ' ');
-        
+
         // Remove punctuation except apostrophes (for names like T'Challa)
         normalized = normalized.replace(/[^\w\s']/g, '');
-        
+
         return normalized.trim();
     },
-    
+
     // Check answer with flexible matching
+    // Returns: { correct: boolean, missingPhrasing: boolean, normalizedUserAnswer: string }
     checkAnswer(category, value, userAnswer) {
         const correctAnswers = allQuestions[category][value].answer;
+
+        // First, check for proper Jeopardy phrasing
+        const hasPhrasing = this.validatePhrasing(userAnswer);
+
         const normalizedUserAnswer = this.normalizeAnswer(userAnswer);
-        
-        return correctAnswers.some(ans => {
+
+        const contentMatch = correctAnswers.some(ans => {
             const normalizedCorrect = this.normalizeAnswer(ans);
-            
+
             // Exact match after normalization
             if (normalizedUserAnswer === normalizedCorrect) return true;
-            
+
             // Check if user answer contains the correct answer (for partial matches)
             if (normalizedUserAnswer.includes(normalizedCorrect)) return true;
-            
+
             // Check if correct answer contains user answer (for abbreviations)
             if (normalizedCorrect.includes(normalizedUserAnswer) && normalizedUserAnswer.length > 3) return true;
-            
+
             return false;
         });
+
+        return {
+            correct: hasPhrasing && contentMatch,
+            missingPhrasing: !hasPhrasing && contentMatch,
+            contentMatch: contentMatch,
+            normalizedUserAnswer: normalizedUserAnswer
+        };
     },
     
     // Get question
@@ -353,6 +393,16 @@ const GameState = {
     // Get correct answer (first one for display)
     getCorrectAnswer(category, value) {
         return allQuestions[category][value].answer[0];
+    },
+
+    // Get correct answer with suggested Jeopardy phrasing
+    getCorrectAnswerFormatted(category, value) {
+        const question = this.getQuestion(category, value);
+        const prefix = this.getSuggestedPrefix(question);
+        const answer = this.getCorrectAnswer(category, value);
+        // Capitalize first letter of answer
+        const formattedAnswer = answer.charAt(0).toUpperCase() + answer.slice(1);
+        return `${prefix} ${formattedAnswer}?`;
     }
 };
 
@@ -409,12 +459,17 @@ const FinalJeopardy = {
         if (state && gameState) {
             state.answers = answers;
             
-            // Check each answer
+            // Check each answer with phrasing validation
             for (let i = 1; i <= gameState.playerCount; i++) {
                 const userAnswer = answers[i].toLowerCase().trim();
-                state.results[i] = finalJeopardyQuestion.answers.some(
+                const hasPhrasing = GameState.validatePhrasing(answers[i]);
+                
+                const contentMatch = finalJeopardyQuestion.answers.some(
                     ans => userAnswer === ans.toLowerCase()
                 );
+                
+                // Must have phrasing AND match content
+                state.results[i] = hasPhrasing && contentMatch;
                 
                 // Update scores
                 if (state.results[i]) {

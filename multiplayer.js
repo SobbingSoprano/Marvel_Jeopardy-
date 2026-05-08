@@ -445,7 +445,7 @@ const MultiplayerManager = {
     },
 
     // Submit answer
-    async submitAnswer(answer, isCorrect, points) {
+    async submitAnswer(answer, isCorrect, points, missingPhrasing = false, correctAnswerFormatted = '') {
         if (!this.roomRef) return false;
 
         try {
@@ -477,9 +477,11 @@ const MultiplayerManager = {
                 feedback: {
                     isCorrect: isCorrect,
                     correctAnswer: allQuestions[currentQuestion.category][currentQuestion.value].answer[0],
+                    correctAnswerFormatted: correctAnswerFormatted || allQuestions[currentQuestion.category][currentQuestion.value].answer[0],
                     userAnswer: answer,
                     points: points,
-                    player: currentTurn
+                    player: currentTurn,
+                    missingPhrasing: missingPhrasing
                 }
             });
 

@@ -33,6 +33,7 @@
     
     <!-- Game Logic -->
     <script src="questions.js"></script>
+    <script src="ai-sbmm.js"></script>
 </head>
 
 <body class="game-page">
@@ -60,6 +61,11 @@
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
+    </div>
+
+    <!-- Page Navigation -->
+    <div class="page-nav">
+        <a href="index.html" class="nav-btn" id="leaveGameBtn" data-transition>Leave Game</a>
     </div>
 
     <!-- Number Guessing Overlay -->
@@ -136,7 +142,7 @@
             <div class="question-text" id="qText"></div>
             <form id="answerForm" class="question-form">
                 <label for="answerInput" class="question-label">Enter your answer:</label>
-                <input type="text" id="answerInput" class="question-input" autofocus required>
+                <input type="text" id="answerInput" class="question-input" placeholder="e.g., What is Captain America?" autofocus required>
                 <div class="question-buttons">
                     <button type="submit" class="submit-btn">Submit</button>
                     <a href="#" class="cancel-btn" id="cancelAnswer">Cancel</a>
@@ -147,10 +153,30 @@
 
     <!-- Feedback Overlay -->
     <div class="question-overlay" id="feedbackOverlay" style="display: none;">
-        <div class="question-card">
-            <h2 id="feedbackTitle"></h2>
-            <p id="feedbackText"></p>
-            <a href="#" class="submit-btn" id="feedbackClose">Continue</a>
+        <div class="question-card" id="feedbackCard">
+            <div class="feedback-burst">
+                <svg viewBox="0 0 100 100"><polygon points="50,5 61,35 95,35 68,55 79,85 50,65 21,85 32,55 5,35 39,35"/></svg>
+                <div class="feedback-icon" id="feedbackIcon">✓</div>
+            </div>
+            <div class="feedback-result">
+                <h2 id="feedbackTitle">Correct!</h2>
+                <div class="feedback-points" id="feedbackPoints">+$400</div>
+            </div>
+            <div class="feedback-answers">
+                <div class="feedback-answers-row">
+                    <span class="feedback-answers-label">You said:</span>
+                    <span class="feedback-answers-value user-answer" id="feedbackUserAnswer"></span>
+                </div>
+                <div class="feedback-answers-row">
+                    <span class="feedback-answers-label">Correct:</span>
+                    <span class="feedback-answers-value correct-answer" id="feedbackCorrectAnswer"></span>
+                </div>
+            </div>
+            <div class="feedback-phrasing-reminder" id="feedbackPhrasingReminder" style="display: none;">
+                <strong>Remember:</strong> Always phrase your answer as a question!<br>
+                <span id="feedbackPhrasingExample">e.g., "What is..." or "Who is..."</span>
+            </div>
+            <a href="#" class="submit-btn" id="feedbackClose" style="margin-top: 1.5em;">Continue</a>
         </div>
     </div>
 
@@ -445,6 +471,8 @@
             
             overlay.style.display = 'flex';
             document.getElementById('ddAnswer').focus();
+            
+            if (typeof AISBMM !== 'undefined') AISBMM.startQuestionTimer(category, value);
         }
 
         // Daily Double answer submission
@@ -452,10 +480,10 @@
             e.preventDefault();
             
             const answer = document.getElementById('ddAnswer').value;
-            const isCorrect = GameState.checkAnswer(currentQuestion.category, currentQuestion.value, answer);
+            const result = GameState.checkAnswer(currentQuestion.category, currentQuestion.value, answer);
             
             // Update score
-            if (isCorrect) {
+            if (result.correct) {
                 GameState.updateScore(state.currentTurn, ddWager);
             } else {
                 GameState.updateScore(state.currentTurn, -ddWager);
@@ -469,7 +497,9 @@
             
             // Show feedback
             document.getElementById('ddQuestionOverlay').style.display = 'none';
-            showFeedback(isCorrect, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), answer, ddWager);
+            showFeedback(result.correct, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), answer, ddWager, result.missingPhrasing);
+            
+            if (typeof AISBMM !== 'undefined') AISBMM.recordAnswer(currentQuestion.category, currentQuestion.value, state.currentTurn, result.correct, answer);
             
             // Clear form
             document.getElementById('ddAnswer').value = '';
@@ -486,6 +516,8 @@
             
             overlay.style.display = 'flex';
             document.getElementById('answerInput').focus();
+            
+            if (typeof AISBMM !== 'undefined') AISBMM.startQuestionTimer(category, value);
         }
 
         // Answer form submission
@@ -493,11 +525,11 @@
             e.preventDefault();
             
             const answer = document.getElementById('answerInput').value;
-            const isCorrect = GameState.checkAnswer(currentQuestion.category, currentQuestion.value, answer);
+            const result = GameState.checkAnswer(currentQuestion.category, currentQuestion.value, answer);
             const pointValue = parseInt(currentQuestion.value.replace('$', ''));
             
             // Update score
-            if (isCorrect) {
+            if (result.correct) {
                 GameState.updateScore(state.currentTurn, pointValue);
             } else {
                 GameState.updateScore(state.currentTurn, -pointValue);
@@ -511,7 +543,9 @@
             
             // Show feedback
             document.getElementById('questionOverlay').style.display = 'none';
-            showFeedback(isCorrect, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), answer, pointValue);
+            showFeedback(result.correct, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), answer, pointValue, result.missingPhrasing);
+            
+            if (typeof AISBMM !== 'undefined') AISBMM.recordAnswer(currentQuestion.category, currentQuestion.value, state.currentTurn, result.correct, answer);
             
             // Clear form
             document.getElementById('answerInput').value = '';
@@ -523,22 +557,54 @@
             document.getElementById('questionOverlay').style.display = 'none';
         });
 
-        function showFeedback(isCorrect, correctAnswer, userAnswer, points) {
+        function showFeedback(isCorrect, correctAnswer, userAnswer, points, missingPhrasing) {
             const overlay = document.getElementById('feedbackOverlay');
+            const card = document.getElementById('feedbackCard');
+            const icon = document.getElementById('feedbackIcon');
+            const title = document.getElementById('feedbackTitle');
+            const pointsEl = document.getElementById('feedbackPoints');
+            const userAnswerEl = document.getElementById('feedbackUserAnswer');
+            const correctAnswerEl = document.getElementById('feedbackCorrectAnswer');
+            const phrasingReminder = document.getElementById('feedbackPhrasingReminder');
             
-            document.getElementById('feedbackTitle').textContent = isCorrect ? 'Correct!' : 'Incorrect!';
-            document.getElementById('feedbackTitle').style.color = isCorrect ? '#00ff00' : '#ff0000';
+            card.classList.remove('feedback-correct', 'feedback-incorrect', 'feedback-phrasing');
             
-            let feedbackText = isCorrect 
-                ? `+$${points}` 
-                : `-$${points}<br>Correct answer: ${correctAnswer}`;
-            document.getElementById('feedbackText').innerHTML = feedbackText;
+            if (missingPhrasing) {
+                card.classList.add('feedback-phrasing');
+                icon.textContent = '!';
+                title.textContent = 'Missing Phrasing!';
+                pointsEl.textContent = `-$${points}`;
+                phrasingReminder.style.display = 'block';
+                
+                const prefix = GameState.getSuggestedPrefix(GameState.getQuestion(currentQuestion.category, currentQuestion.value));
+                document.getElementById('feedbackPhrasingExample').textContent = `Try: "${prefix}..."`;
+                
+                ScreenEffects.shake('medium');
+                ScreenEffects.flash('rgba(255, 170, 0, 0.4)');
+            } else if (isCorrect) {
+                card.classList.add('feedback-correct');
+                icon.textContent = '✓';
+                title.textContent = 'Correct!';
+                pointsEl.textContent = `+$${points}`;
+                phrasingReminder.style.display = 'none';
+                
+                ScreenEffects.shake('light');
+                ScreenEffects.flash('green');
+            } else {
+                card.classList.add('feedback-incorrect');
+                icon.textContent = '✗';
+                title.textContent = 'Incorrect!';
+                pointsEl.textContent = `-$${points}`;
+                phrasingReminder.style.display = 'none';
+                
+                ScreenEffects.shake('medium');
+                ScreenEffects.flash('red');
+            }
+            
+            userAnswerEl.textContent = userAnswer || '—';
+            correctAnswerEl.textContent = GameState.getCorrectAnswerFormatted(currentQuestion.category, currentQuestion.value);
             
             overlay.style.display = 'flex';
-            
-            // Screen effects on answer feedback
-            ScreenEffects.shake(isCorrect ? 'light' : 'medium');
-            ScreenEffects.flash(isCorrect ? 'green' : 'red');
         }
 
         // Feedback close button
@@ -562,6 +628,15 @@
 
         // Reset link - go to homepage
         document.getElementById('resetLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to leave the game?')) {
+                GameState.clear();
+                PageTransitions.navigateTo('index.html');
+            }
+        });
+
+        // Leave game button
+        document.getElementById('leaveGameBtn').addEventListener('click', function(e) {
             e.preventDefault();
             if (confirm('Are you sure you want to leave the game?')) {
                 GameState.clear();

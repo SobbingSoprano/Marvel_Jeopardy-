@@ -39,6 +39,7 @@
     <script src="firebase-config.js"></script>
     <script src="questions.js"></script>
     <script src="multiplayer.js"></script>
+    <script src="ai-sbmm.js"></script>
 </head>
 
 <body class="game-page">
@@ -66,6 +67,11 @@
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
+    </div>
+
+    <!-- Page Navigation -->
+    <div class="page-nav">
+        <a href="index.html" class="nav-btn" id="leaveGameBtn" data-transition>Leave Game</a>
     </div>
 
     <!-- Connection Status -->
@@ -150,7 +156,7 @@
             <div class="question-text" id="qText"></div>
             <form id="answerForm" class="question-form">
                 <label for="answerInput" class="question-label">Your answer:</label>
-                <input type="text" id="answerInput" class="question-input" autofocus required>
+                <input type="text" id="answerInput" class="question-input" placeholder="e.g., What is Captain America?" autofocus required>
                 <div class="question-buttons">
                     <button type="submit" class="submit-btn">Submit</button>
                 </div>
@@ -160,11 +166,31 @@
 
     <!-- Feedback Overlay -->
     <div class="question-overlay" id="feedbackOverlay" style="display: none;">
-        <div class="question-card">
-            <h2 id="feedbackTitle"></h2>
-            <p id="feedbackPlayer"></p>
-            <p id="feedbackText"></p>
-            <a href="#" class="submit-btn" id="feedbackClose">Continue</a>
+        <div class="question-card" id="feedbackCard">
+            <div class="feedback-burst">
+                <svg viewBox="0 0 100 100"><polygon points="50,5 61,35 95,35 68,55 79,85 50,65 21,85 32,55 5,35 39,35"/></svg>
+                <div class="feedback-icon" id="feedbackIcon">✓</div>
+            </div>
+            <div class="feedback-result">
+                <h2 id="feedbackTitle">Correct!</h2>
+                <div class="feedback-points" id="feedbackPoints">+$400</div>
+            </div>
+            <div id="feedbackPlayer" style="text-align:center; font-family:'Bungee',cursive; color:#888; margin-bottom:0.5em;"></div>
+            <div class="feedback-answers">
+                <div class="feedback-answers-row">
+                    <span class="feedback-answers-label">Answer:</span>
+                    <span class="feedback-answers-value user-answer" id="feedbackUserAnswer"></span>
+                </div>
+                <div class="feedback-answers-row">
+                    <span class="feedback-answers-label">Correct:</span>
+                    <span class="feedback-answers-value correct-answer" id="feedbackCorrectAnswer"></span>
+                </div>
+            </div>
+            <div class="feedback-phrasing-reminder" id="feedbackPhrasingReminder" style="display: none;">
+                <strong>Remember:</strong> Always phrase your answer as a question!<br>
+                <span id="feedbackPhrasingExample">e.g., "What is..." or "Who is..."</span>
+            </div>
+            <a href="#" class="submit-btn" id="feedbackClose" style="margin-top: 1.5em;">Continue</a>
         </div>
     </div>
 
@@ -228,23 +254,65 @@
         // Flexible answer checking
         function normalizeAnswer(answer) {
             let normalized = answer.toLowerCase().trim();
-            normalized = normalized.replace(/^(what is|who is|what's|who's|where is|when is)\s+/i, '');
+            normalized = normalized.replace(/^(what is|who is|what's|who's|where is|when is|how is|why is|where's|when's|how's)\s+/i, '');
             normalized = normalized.replace(/^(the|a|an)\s+/i, '');
             normalized = normalized.replace(/\s+/g, ' ');
             normalized = normalized.replace(/[^\w\s']/g, '');
             return normalized.trim();
         }
 
+        const validPhrases = [
+            'what is', "what's", 'who is', "who's",
+            'where is', "where's", 'when is', "when's",
+            'how is', "how's", 'why is'
+        ];
+
+        function validatePhrasing(answer) {
+            const lower = answer.toLowerCase().trim();
+            return validPhrases.some(phrase => lower.startsWith(phrase + ' '));
+        }
+
+        function getSuggestedPrefix(question) {
+            const lower = question.toLowerCase();
+            if (lower.includes('who') || lower.includes('name') || lower.includes('character') || lower.includes('person') || lower.includes('leader') || lower.includes('father')) {
+                return 'Who is';
+            }
+            if (lower.includes('where') || lower.includes('city') || lower.includes('country') || lower.includes('place') || lower.includes('street')) {
+                return 'Where is';
+            }
+            if (lower.includes('when') || lower.includes('year') || lower.includes('date') || lower.includes('time')) {
+                return 'When is';
+            }
+            return 'What is';
+        }
+
+        function getCorrectAnswerFormatted(category, value) {
+            const qText = allQuestions[category][value].question;
+            const prefix = getSuggestedPrefix(qText);
+            const answer = allQuestions[category][value].answer[0];
+            const formattedAnswer = answer.charAt(0).toUpperCase() + answer.slice(1);
+            return `${prefix} ${formattedAnswer}?`;
+        }
+
         function checkAnswerFlexible(category, value, userAnswer) {
             const correctAnswers = allQuestions[category][value].answer;
+            const hasPhrasing = validatePhrasing(userAnswer);
             const normalizedUserAnswer = normalizeAnswer(userAnswer);
-            return correctAnswers.some(ans => {
+
+            const contentMatch = correctAnswers.some(ans => {
                 const normalizedCorrect = normalizeAnswer(ans);
                 if (normalizedUserAnswer === normalizedCorrect) return true;
                 if (normalizedUserAnswer.includes(normalizedCorrect)) return true;
                 if (normalizedCorrect.includes(normalizedUserAnswer) && normalizedUserAnswer.length > 3) return true;
                 return false;
             });
+
+            return {
+                correct: hasPhrasing && contentMatch,
+                missingPhrasing: !hasPhrasing && contentMatch,
+                contentMatch: contentMatch,
+                normalizedUserAnswer: normalizedUserAnswer
+            };
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
@@ -449,16 +517,56 @@
         }
 
         function showFeedback(feedback) {
-            document.getElementById('feedbackOverlay').style.display = 'flex';
-            document.getElementById('feedbackTitle').textContent = feedback.isCorrect ? 'Correct!' : 'Incorrect!';
-            document.getElementById('feedbackTitle').style.color = feedback.isCorrect ? '#00ff00' : '#ff0000';
-            document.getElementById('feedbackPlayer').textContent = `${gameState.playerNames[feedback.player]} answered: "${feedback.userAnswer}"`;
-            let feedbackText = feedback.isCorrect ? `+$${feedback.points}` : `-$${feedback.points}<br>Correct answer: ${feedback.correctAnswer}`;
-            document.getElementById('feedbackText').innerHTML = feedbackText;
+            const overlay = document.getElementById('feedbackOverlay');
+            const card = document.getElementById('feedbackCard');
+            const icon = document.getElementById('feedbackIcon');
+            const title = document.getElementById('feedbackTitle');
+            const pointsEl = document.getElementById('feedbackPoints');
+            const playerEl = document.getElementById('feedbackPlayer');
+            const userAnswerEl = document.getElementById('feedbackUserAnswer');
+            const correctAnswerEl = document.getElementById('feedbackCorrectAnswer');
+            const phrasingReminder = document.getElementById('feedbackPhrasingReminder');
             
-            // Screen effects on answer feedback
-            ScreenEffects.shake(feedback.isCorrect ? 'light' : 'medium');
-            ScreenEffects.flash(feedback.isCorrect ? 'green' : 'red');
+            card.classList.remove('feedback-correct', 'feedback-incorrect', 'feedback-phrasing');
+            
+            playerEl.textContent = `${gameState.playerNames[feedback.player]} answered:`;
+            
+            if (feedback.missingPhrasing) {
+                card.classList.add('feedback-phrasing');
+                icon.textContent = '!';
+                title.textContent = 'Missing Phrasing!';
+                pointsEl.textContent = `-$${feedback.points}`;
+                phrasingReminder.style.display = 'block';
+                
+                const prefix = getSuggestedPrefix(allQuestions[gameState.currentQuestion?.category]?.[gameState.currentQuestion?.value]?.question || '');
+                document.getElementById('feedbackPhrasingExample').textContent = `Try: "${prefix}..."`;
+                
+                ScreenEffects.shake('medium');
+                ScreenEffects.flash('rgba(255, 170, 0, 0.4)');
+            } else if (feedback.isCorrect) {
+                card.classList.add('feedback-correct');
+                icon.textContent = '✓';
+                title.textContent = 'Correct!';
+                pointsEl.textContent = `+$${feedback.points}`;
+                phrasingReminder.style.display = 'none';
+                
+                ScreenEffects.shake('light');
+                ScreenEffects.flash('green');
+            } else {
+                card.classList.add('feedback-incorrect');
+                icon.textContent = '✗';
+                title.textContent = 'Incorrect!';
+                pointsEl.textContent = `-$${feedback.points}`;
+                phrasingReminder.style.display = 'none';
+                
+                ScreenEffects.shake('medium');
+                ScreenEffects.flash('red');
+            }
+            
+            userAnswerEl.textContent = feedback.userAnswer || '—';
+            correctAnswerEl.textContent = feedback.correctAnswerFormatted || feedback.correctAnswer;
+            
+            overlay.style.display = 'flex';
         }
 
         async function selectCell(category, value, isDailyDouble) {
@@ -493,9 +601,10 @@
             e.preventDefault();
             const answer = document.getElementById('answerInput').value.trim();
             const q = gameState.currentQuestion;
-            const isCorrect = checkAnswerFlexible(q.category, q.value, answer);
+            const result = checkAnswerFlexible(q.category, q.value, answer);
             const points = q.isDailyDouble ? gameState.dailyDoubleWager : parseInt(q.value.replace('$', ''));
-            await MultiplayerManager.submitAnswer(answer, isCorrect, points);
+            const formattedAnswer = getCorrectAnswerFormatted(q.category, q.value);
+            await MultiplayerManager.submitAnswer(answer, result.correct, points, result.missingPhrasing, formattedAnswer);
             document.getElementById('answerInput').value = '';
         });
 
@@ -508,6 +617,14 @@
         async function startGame() { await MultiplayerManager.startGame(); }
 
         document.getElementById('resetLink').addEventListener('click', async function(e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to leave the game?')) {
+                await MultiplayerManager.leaveRoom();
+                PageTransitions.navigateTo('index.html');
+            }
+        });
+
+        document.getElementById('leaveGameBtn').addEventListener('click', async function(e) {
             e.preventDefault();
             if (confirm('Are you sure you want to leave the game?')) {
                 await MultiplayerManager.leaveRoom();

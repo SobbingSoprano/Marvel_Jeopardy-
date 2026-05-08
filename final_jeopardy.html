@@ -30,6 +30,7 @@
     
     <!-- Game Logic -->
     <script src="questions.js"></script>
+    <script src="ai-sbmm.js"></script>
 </head>
 
 <body class="game-page">
@@ -57,6 +58,11 @@
         <span class="title-marvel">MARVEL</span>
         <span class="title-jeopardy">Jeopardy!</span>
     </a>
+</div>
+
+<!-- Page Navigation -->
+<div class="page-nav">
+    <a href="index.html" class="nav-btn" id="leaveGameBtn" data-transition>Leave Game</a>
 </div>
 
 <!-- WAGER SCREEN -->
@@ -175,7 +181,7 @@
             const div = document.createElement('div');
             div.innerHTML = `
                 <label class="question-label">${escapeHtml(playerNames[i])}'s Answer:</label>
-                <input type="text" id="answer_${i}" class="question-input" required>
+                <input type="text" id="answer_${i}" class="question-input" placeholder="e.g., What is Adamantium?" required>
             `;
             container.appendChild(div);
         }
@@ -259,6 +265,16 @@
     document.getElementById('returnBtn').addEventListener('click', function(e) {
         GameState.clear();
         FinalJeopardy.clear();
+    });
+
+    // Leave game button
+    document.getElementById('leaveGameBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (confirm('Are you sure you want to leave the game?')) {
+            GameState.clear();
+            FinalJeopardy.clear();
+            PageTransitions.navigateTo('index.html');
+        }
     });
 
     // Helper function to escape HTML

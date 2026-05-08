@@ -1166,37 +1166,95 @@ input:invalid {
     color: inherit;
 }
 
-/* Feedback styles */
+/* ============================================================
+   FEEDBACK MODAL - Comic-book themed result display
+   ============================================================ */
+
+/* Feedback card variants */
 .feedback-correct {
     border-color: #00ff00 !important;
+    box-shadow: 0 0 50px rgba(0, 255, 0, 0.4) !important;
 }
 
 .feedback-incorrect {
     border-color: #ff0000 !important;
+    box-shadow: 0 0 50px rgba(255, 0, 0, 0.4) !important;
 }
 
-.feedback-result {
-    text-align: center;
-    padding: 2em 0;
+.feedback-phrasing {
+    border-color: #ffaa00 !important;
+    box-shadow: 0 0 50px rgba(255, 170, 0, 0.4) !important;
+}
+
+/* Comic burst decoration behind the feedback icon */
+.feedback-burst {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.feedback-burst svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    fill: #ff0000;
+    animation: burstPulse 0.6s ease-out;
+}
+
+.feedback-correct .feedback-burst svg {
+    fill: #00ff00;
+}
+
+.feedback-incorrect .feedback-burst svg {
+    fill: #ff0000;
+}
+
+.feedback-phrasing .feedback-burst svg {
+    fill: #ffaa00;
+}
+
+@keyframes burstPulse {
+    0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+    50% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
 .feedback-icon {
-    font-size: 5em;
-    margin-bottom: 0.3em;
+    position: relative;
+    z-index: 2;
+    font-size: 4em;
+    font-family: 'Bangers', cursive;
+    line-height: 1;
 }
 
 .feedback-correct .feedback-icon {
-    color: #00ff00;
+    color: #000;
 }
 
 .feedback-incorrect .feedback-icon {
-    color: #ff0000;
+    color: #fff;
+}
+
+.feedback-phrasing .feedback-icon {
+    color: #000;
+}
+
+/* Feedback result area */
+.feedback-result {
+    text-align: center;
+    padding: 1em 0;
 }
 
 .feedback-result h2 {
     font-family: 'Bungee', cursive;
-    font-size: 2.5em;
-    margin: 0.5em 0;
+    font-size: 2.2em;
+    margin: 0.3em 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
 .feedback-correct h2 {
@@ -1207,22 +1265,102 @@ input:invalid {
     color: #ff0000;
 }
 
-.feedback-answer {
+.feedback-phrasing h2 {
+    color: #ffaa00;
+}
+
+/* Points display */
+.feedback-points {
+    font-family: 'Monoton', cursive;
+    font-size: 3em;
+    margin: 0.2em 0 0.5em;
+}
+
+.feedback-correct .feedback-points {
+    color: #00ff00;
+}
+
+.feedback-incorrect .feedback-points {
+    color: #ff0000;
+}
+
+.feedback-phrasing .feedback-points {
+    color: #ffaa00;
+}
+
+/* Answer comparison block */
+.feedback-answers {
     margin-top: 1.5em;
     padding: 1.5em;
     background: #111;
-    border: 2px solid #ff0000;
-    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    text-align: left;
 }
 
-.feedback-answer p {
+.feedback-answers-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8em;
     margin: 0.8em 0;
-    font-size: 1.1em;
-    line-height: 1.6;
+    font-size: 1.05em;
+    line-height: 1.5;
 }
 
-.feedback-answer strong {
-    color: #ff0000;
+.feedback-answers-row:first-child {
+    margin-top: 0;
+}
+
+.feedback-answers-row:last-child {
+    margin-bottom: 0;
+}
+
+.feedback-answers-label {
+    font-family: 'Bungee', cursive;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+.feedback-answers-value {
+    color: #fff;
+    font-family: 'Anton', sans-serif;
+    font-size: 1.1em;
+}
+
+.feedback-answers-value.correct-answer {
+    color: #00ff00;
+}
+
+.feedback-answers-value.user-answer {
+    color: #ff6666;
+}
+
+/* Phrasing reminder */
+.feedback-phrasing-reminder {
+    margin-top: 1em;
+    padding: 1em;
+    background: rgba(255, 170, 0, 0.15);
+    border: 2px dashed #ffaa00;
+    border-radius: 8px;
+    font-family: 'Bungee', cursive;
+    font-size: 0.95em;
+    color: #ffaa00;
+    text-align: center;
+}
+
+.feedback-phrasing-reminder strong {
+    color: #fff;
+}
+
+/* Divider between sections */
+.feedback-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    margin: 1em 0;
 }
 
 /* Number Guessing Screen */
@@ -2076,6 +2214,78 @@ body.game-page {
         padding-top: 60px;
         flex-direction: row;
     }
+}
+
+/* ============================================================
+   AI-SBMM TOGGLE
+   ============================================================ */
+
+.ai-sbmm-toggle {
+    display: inline-block;
+}
+
+.ai-sbmm-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Bungee', cursive;
+    font-size: 0.75em;
+    padding: 0.5em 0.9em;
+    background: rgba(0, 0, 0, 0.6);
+    color: #666;
+    border: 2px solid #444;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ai-sbmm-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.ai-sbmm-btn:hover {
+    border-color: #ffaa00;
+    color: #ffaa00;
+}
+
+.ai-sbmm-btn.active {
+    background: rgba(255, 170, 0, 0.15);
+    border-color: #ffaa00;
+    color: #ffaa00;
+    box-shadow: 0 0 15px rgba(255, 170, 0, 0.3);
+}
+
+/* ============================================================
+   PAGE NAVIGATION - Consistent back/leave buttons
+   ============================================================ */
+
+.page-nav {
+    position: fixed;
+    top: 3vh;
+    right: 3vw;
+    z-index: 100;
+}
+
+.page-nav .nav-btn {
+    font-family: 'Bungee', cursive;
+    font-size: 0.85em;
+    padding: 0.5em 1em;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.page-nav .nav-btn:hover {
+    background: #ff0000;
+    color: #000;
 }
 
 /* ============================================================

@@ -36,6 +36,7 @@
     <script src="firebase-config.js"></script>
     <script src="questions.js"></script>
     <script src="multiplayer.js"></script>
+    <script src="ai-sbmm.js"></script>
 </head>
 
 <body class="game-page">
@@ -62,6 +63,11 @@
             <span class="title-marvel">MARVEL</span>
             <span class="title-jeopardy">Jeopardy!</span>
         </a>
+    </div>
+
+    <!-- Page Navigation -->
+    <div class="page-nav">
+        <a href="index.html" class="nav-btn" id="leaveGameBtn" data-transition>Leave Game</a>
     </div>
 
     <!-- Connection Status -->
@@ -104,7 +110,7 @@
 
             <form id="answerForm" class="question-form">
                 <label class="question-label">Your Answer:</label>
-                <input type="text" id="answerInput" class="question-input" required autofocus>
+                <input type="text" id="answerInput" class="question-input" placeholder="e.g., What is Adamantium?" required autofocus>
                 <button type="submit" class="submit-btn">Submit Answer</button>
             </form>
 
@@ -300,6 +306,15 @@
             e.preventDefault();
             await MultiplayerManager.leaveRoom();
             PageTransitions.navigateTo('lobby.html');
+        });
+
+        // Leave game button
+        document.getElementById('leaveGameBtn').addEventListener('click', async function(e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to leave the game?')) {
+                await MultiplayerManager.leaveRoom();
+                PageTransitions.navigateTo('index.html');
+            }
         });
 
         function hideAllScreens() {
