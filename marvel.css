@@ -1202,6 +1202,27 @@ input:invalid {
     box-shadow: 0 0 50px rgba(255, 170, 0, 0.4) !important;
 }
 
+.feedback-passed {
+    border-color: #aa66ff !important;
+    box-shadow: 0 0 50px rgba(170, 102, 255, 0.4) !important;
+}
+
+.feedback-passed .feedback-burst svg {
+    fill: #aa66ff;
+}
+
+.feedback-passed .feedback-icon {
+    color: #fff;
+}
+
+.feedback-passed h2 {
+    color: #aa66ff;
+}
+
+.feedback-passed .feedback-points {
+    color: #aa66ff;
+}
+
 /* Comic burst decoration behind the feedback icon */
 .feedback-burst {
     position: relative;

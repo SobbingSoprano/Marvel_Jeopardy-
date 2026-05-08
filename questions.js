@@ -318,18 +318,14 @@ const GameState = {
         return this.validPhrases.some(phrase => lower.startsWith(phrase + ' '));
     },
 
-    // Get suggested phrasing prefix based on question content
-    getSuggestedPrefix(question) {
-        const lower = question.toLowerCase();
-        if (lower.includes('who') || lower.includes('name') || lower.includes('character') || lower.includes('person') || lower.includes('leader') || lower.includes('father')) {
-            return 'Who is';
-        }
-        if (lower.includes('where') || lower.includes('city') || lower.includes('country') || lower.includes('place') || lower.includes('street')) {
-            return 'Where is';
-        }
-        if (lower.includes('when') || lower.includes('year') || lower.includes('date') || lower.includes('time')) {
-            return 'When is';
-        }
+    // Get suggested phrasing prefix based on what the answer represents
+    // In Jeopardy: people = "Who is", teams = "Who are", everything else = "What is"
+    getSuggestedPrefix(category, value) {
+        // People category = individuals
+        if (category === 'People') return 'Who is';
+        // Teams category = groups of people
+        if (category === 'Teams') return 'Who are';
+        // Places, Powers, Artifacts, Media = things/concepts/places/titles
         return 'What is';
     },
 
@@ -352,8 +348,33 @@ const GameState = {
         return normalized.trim();
     },
 
+    // Levenshtein distance for fuzzy spelling matching
+    // Returns how many single-character edits needed to transform a into b
+    levenshtein(a, b) {
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                matrix[i][j] = b[i - 1] === a[j - 1]
+                    ? matrix[i - 1][j - 1]
+                    : Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+            }
+        }
+        return matrix[b.length][a.length];
+    },
+
+    // Check if two strings are close enough (allows minor spelling mistakes)
+    isFuzzyMatch(a, b) {
+        const dist = this.levenshtein(a, b);
+        const maxLen = Math.max(a.length, b.length);
+        // Allow 1 edit for short answers, 2 for longer ones
+        const threshold = maxLen <= 5 ? 1 : 2;
+        return dist <= threshold;
+    },
+
     // Check answer with flexible matching
-    // Returns: { correct: boolean, missingPhrasing: boolean, normalizedUserAnswer: string }
+    // Returns: { correct: boolean, missingPhrasing: boolean, contentMatch: boolean }
     checkAnswer(category, value, userAnswer) {
         const correctAnswers = allQuestions[category][value].answer;
 
@@ -368,11 +389,11 @@ const GameState = {
             // Exact match after normalization
             if (normalizedUserAnswer === normalizedCorrect) return true;
 
-            // Check if user answer contains the correct answer (for partial matches)
-            if (normalizedUserAnswer.includes(normalizedCorrect)) return true;
+            // Fuzzy match: minor spelling mistakes allowed (1-2 chars off)
+            if (this.isFuzzyMatch(normalizedUserAnswer, normalizedCorrect)) return true;
 
-            // Check if correct answer contains user answer (for abbreviations)
-            if (normalizedCorrect.includes(normalizedUserAnswer) && normalizedUserAnswer.length > 3) return true;
+            // Check if user answer contains the correct answer (e.g. "captain america civil war" for "captain america")
+            if (normalizedUserAnswer.includes(normalizedCorrect)) return true;
 
             return false;
         });
@@ -380,8 +401,7 @@ const GameState = {
         return {
             correct: hasPhrasing && contentMatch,
             missingPhrasing: !hasPhrasing && contentMatch,
-            contentMatch: contentMatch,
-            normalizedUserAnswer: normalizedUserAnswer
+            contentMatch: contentMatch
         };
     },
     
@@ -397,8 +417,7 @@ const GameState = {
 
     // Get correct answer with suggested Jeopardy phrasing
     getCorrectAnswerFormatted(category, value) {
-        const question = this.getQuestion(category, value);
-        const prefix = this.getSuggestedPrefix(question);
+        const prefix = this.getSuggestedPrefix(category, value);
         const answer = this.getCorrectAnswer(category, value);
         // Capitalize first letter of answer
         const formattedAnswer = answer.charAt(0).toUpperCase() + answer.slice(1);

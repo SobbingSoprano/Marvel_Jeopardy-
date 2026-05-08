@@ -552,13 +552,33 @@
             document.getElementById('answerInput').value = '';
         });
 
-        // Cancel button
+        // Cancel button — warn, deduct points, mark as used
         document.getElementById('cancelAnswer').addEventListener('click', function(e) {
             e.preventDefault();
+            
+            const pointValue = parseInt(currentQuestion.value.replace('$', ''));
+            if (!confirm(`Are you sure? Passing will deduct $${pointValue} and remove this question from the board.`)) {
+                return;
+            }
+            
+            // Deduct points
+            GameState.updateScore(state.currentTurn, -pointValue);
+            
+            // Mark cell as used
+            GameState.markCellUsed(`${currentQuestion.category}|${currentQuestion.value}`);
+            
+            // Switch turn
+            GameState.nextTurn();
+            
+            // Hide question overlay and show "passed" feedback
             document.getElementById('questionOverlay').style.display = 'none';
+            showFeedback(false, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), '[No Answer]', pointValue, false, true);
+            
+            // Clear form
+            document.getElementById('answerInput').value = '';
         });
 
-        function showFeedback(isCorrect, correctAnswer, userAnswer, points, missingPhrasing) {
+        function showFeedback(isCorrect, correctAnswer, userAnswer, points, missingPhrasing, passed) {
             const overlay = document.getElementById('feedbackOverlay');
             const card = document.getElementById('feedbackCard');
             const icon = document.getElementById('feedbackIcon');
@@ -568,16 +588,25 @@
             const correctAnswerEl = document.getElementById('feedbackCorrectAnswer');
             const phrasingReminder = document.getElementById('feedbackPhrasingReminder');
             
-            card.classList.remove('feedback-correct', 'feedback-incorrect', 'feedback-phrasing');
+            card.classList.remove('feedback-correct', 'feedback-incorrect', 'feedback-phrasing', 'feedback-passed');
             
-            if (missingPhrasing) {
+            if (passed) {
+                card.classList.add('feedback-passed');
+                icon.textContent = '—';
+                title.textContent = 'No Answer';
+                pointsEl.textContent = `-$${points}`;
+                phrasingReminder.style.display = 'none';
+                
+                ScreenEffects.shake('light');
+                ScreenEffects.flash('rgba(170, 102, 255, 0.3)');
+            } else if (missingPhrasing) {
                 card.classList.add('feedback-phrasing');
                 icon.textContent = '!';
                 title.textContent = 'Missing Phrasing!';
                 pointsEl.textContent = `-$${points}`;
                 phrasingReminder.style.display = 'block';
                 
-                const prefix = GameState.getSuggestedPrefix(GameState.getQuestion(currentQuestion.category, currentQuestion.value));
+                const prefix = GameState.getSuggestedPrefix(currentQuestion.category, currentQuestion.value);
                 document.getElementById('feedbackPhrasingExample').textContent = `Try: "${prefix}..."`;
                 
                 ScreenEffects.shake('medium');
