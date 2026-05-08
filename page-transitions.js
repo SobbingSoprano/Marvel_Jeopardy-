@@ -75,36 +75,32 @@ const PageTransitions = {
             panel.style.opacity = '1';
         });
 
-        // Force reflow
+        // Force reflow so panels are committed to the compositor
         void this.overlay.offsetWidth;
 
         const preloader = document.querySelector('.preloader');
         if (preloader) {
-            // Keep preloader visible but behind the overlay initially
+            // Disable CSS transitions first so class/style changes don't flash
+            preloader.style.transition = 'none';
+
+            // Remove hidden state
             preloader.classList.remove('preloader-hidden');
             preloader.style.display = '';
-            preloader.style.opacity = '1';
-            preloader.style.visibility = 'visible';
-            preloader.style.pointerEvents = 'all';
-            preloader.style.zIndex = '9999';
-            preloader.style.transition = 'none';
-        }
 
-        // On next paint frame, bring preloader above overlay and fade it in seamlessly
-        requestAnimationFrame(() => {
-            if (!preloader) return;
-
-            // Step 1: move to top layer invisible
+            // Position preloader above the overlay, but start fully transparent
+            // This is the single source of truth — no duplicate z-index/opacity sets
             preloader.style.zIndex = '10001';
             preloader.style.opacity = '0';
+            preloader.style.visibility = 'visible';
+            preloader.style.pointerEvents = 'all';
 
-            // Force reflow so the browser paints the opacity:0 state
+            // Commit the invisible state before starting the fade-in
             void preloader.offsetWidth;
 
-            // Step 2: fade in smoothly (crossfade from red panels to red preloader)
+            // Crossfade in over the red panels (same color = seamless)
             preloader.style.transition = 'opacity 0.5s ease-out';
             preloader.style.opacity = '1';
-        });
+        }
 
         // Wait for preloader to finish asset loading
         const waitForPreloader = (typeof Preloader !== 'undefined' && Preloader.waitForLoad)
@@ -133,6 +129,10 @@ const PageTransitions = {
                 if (preloader) {
                     preloader.style.zIndex = '';
                     preloader.style.display = 'none';
+                    preloader.style.opacity = '';
+                    preloader.style.visibility = '';
+                    preloader.style.pointerEvents = '';
+                    preloader.style.transition = '';
                 }
             }, 2900);
         });
