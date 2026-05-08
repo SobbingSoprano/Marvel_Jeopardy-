@@ -122,6 +122,22 @@ body {
     opacity: 1 !important;
 }
 
+/* Legal disclaimer */
+.preloader-disclaimer {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Anton', sans-serif;
+    font-size: 0.6em;
+    color: rgba(0, 0, 0, 0.45);
+    text-align: center;
+    max-width: 90vw;
+    letter-spacing: 0.3px;
+    line-height: 1.4;
+    text-wrap: balance;
+}
+
 @keyframes spin {
     0% {
         transform: rotate(0deg);
@@ -2256,6 +2272,79 @@ body.game-page {
     border-color: #ffaa00;
     color: #ffaa00;
     box-shadow: 0 0 15px rgba(255, 170, 0, 0.3);
+}
+
+/* AI-SBMM tooltip */
+.ai-sbmm-toggle {
+    position: relative;
+}
+
+.ai-sbmm-tooltip {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 260px;
+    padding: 1em 1.2em;
+    background: #111;
+    border: 2px solid #ffaa00;
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Anton', sans-serif;
+    font-size: 0.85em;
+    line-height: 1.5;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 0 20px rgba(255, 170, 0, 0.25);
+}
+
+.ai-sbmm-tooltip::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #ffaa00;
+}
+
+.ai-sbmm-tooltip strong {
+    display: block;
+    font-family: 'Bungee', cursive;
+    font-size: 0.95em;
+    color: #ffaa00;
+    margin-bottom: 0.4em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ai-sbmm-tooltip p {
+    margin: 0;
+    color: #ccc;
+    font-size: 0.9em;
+}
+
+.ai-sbmm-tooltip .tooltip-hint {
+    display: block;
+    margin-top: 0.6em;
+    font-family: 'Bungee', cursive;
+    font-size: 0.75em;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Show tooltip on hover/focus */
+.ai-sbmm-toggle:hover .ai-sbmm-tooltip,
+.ai-sbmm-toggle:focus-within .ai-sbmm-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
 }
 
 /* ============================================================

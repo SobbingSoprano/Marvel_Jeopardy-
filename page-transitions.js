@@ -80,55 +80,62 @@ const PageTransitions = {
 
         const preloader = document.querySelector('.preloader');
         if (preloader) {
-            // Bring preloader above overlay so crossfades are visible
-            preloader.style.zIndex = '10001';
-            // Start fully hidden
-            preloader.style.transition = 'none';
+            // Keep preloader visible but behind the overlay initially
             preloader.classList.remove('preloader-hidden');
-            preloader.style.opacity = '0';
-            preloader.style.visibility = 'hidden';
+            preloader.style.display = '';
+            preloader.style.opacity = '1';
+            preloader.style.visibility = 'visible';
+            preloader.style.pointerEvents = 'all';
+            preloader.style.zIndex = '9999';
+            preloader.style.transition = 'none';
         }
 
-        // Brief pause so panels settle, then crossfade into preloader
-        setTimeout(() => {
+        // On next paint frame, bring preloader above overlay and fade it in seamlessly
+        requestAnimationFrame(() => {
+            if (!preloader) return;
+
+            // Step 1: move to top layer invisible
+            preloader.style.zIndex = '10001';
+            preloader.style.opacity = '0';
+
+            // Force reflow so the browser paints the opacity:0 state
+            void preloader.offsetWidth;
+
+            // Step 2: fade in smoothly (crossfade from red panels to red preloader)
+            preloader.style.transition = 'opacity 0.5s ease-out';
+            preloader.style.opacity = '1';
+        });
+
+        // Wait for preloader to finish asset loading
+        const waitForPreloader = (typeof Preloader !== 'undefined' && Preloader.waitForLoad)
+            ? Preloader.waitForLoad()
+            : Promise.resolve();
+
+        waitForPreloader.then(() => {
+            // Crossfade from preloader into ending transition
+            // Preloader fades out while panels begin sliding away
             if (preloader) {
-                preloader.style.transition = 'opacity 0.5s ease-out, visibility 0.5s ease-out';
-                preloader.style.opacity = '1';
-                preloader.style.visibility = 'visible';
+                preloader.style.transition = 'opacity 0.6s ease-out';
+                preloader.style.opacity = '0';
             }
 
-            // Wait for preloader to finish asset loading
-            const waitForPreloader = (typeof Preloader !== 'undefined' && Preloader.waitForLoad)
-                ? Preloader.waitForLoad()
-                : Promise.resolve();
-
-            waitForPreloader.then(() => {
-                // Crossfade from preloader into ending transition
-                // Preloader fades out while panels begin sliding away (no fade out on panels)
-                if (preloader) {
-                    preloader.style.transition = 'opacity 0.6s ease-out, visibility 0.6s ease-out';
-                    preloader.style.opacity = '0';
-                    preloader.style.visibility = 'hidden';
-                }
-
-                // Ending transition: panels slide away immediately (no fade, just movement)
-                this.panels.forEach((panel, i) => {
-                    const direction = i % 2 === 0 ? '-100%' : '100%';
-                    panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
-                    panel.style.transform = `translateY(${direction})`;
-                });
-
-                // Clean up after animation completes
-                setTimeout(() => {
-                    this.overlay.classList.remove('transition-active');
-                    document.body.classList.remove('page-transitioning');
-                    if (preloader) {
-                        preloader.style.zIndex = '';
-                        preloader.style.display = 'none';
-                    }
-                }, 2900);
+            // Ending transition: panels slide away immediately (no fade, just movement)
+            this.panels.forEach((panel, i) => {
+                const direction = i % 2 === 0 ? '-100%' : '100%';
+                panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
+                panel.style.transform = `translateY(${direction})`;
             });
-        }, 300);
+
+            // Clean up after animation completes
+            setTimeout(() => {
+                this.overlay.classList.remove('transition-active');
+                document.body.classList.remove('page-transitioning');
+                if (preloader) {
+                    preloader.style.zIndex = '';
+                    preloader.style.display = 'none';
+                }
+            }, 2900);
+        });
     },
 
     // Play transition OUT (covering screen) then navigate
