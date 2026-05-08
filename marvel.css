@@ -604,6 +604,7 @@ body {
     gap: 8px;
     opacity: 0;
     transition: opacity 0.3s ease;
+    pointer-events: none;
 }
 
 .player-option:hover .player-icons {

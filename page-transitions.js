@@ -61,32 +61,35 @@ const PageTransitions = {
     },
 
     // Play transition IN (revealing page) on load
-    // Coordinated with Preloader: cover -> load -> reveal
+    // Sequence: cover (no fade) -> crossfade to preloader -> load -> crossfade to ending transition (no fade out) -> reveal
     playIn() {
         if (!this.overlay) return;
 
         this.overlay.classList.add('transition-active');
         document.body.classList.add('page-transitioning');
 
-        // Panels start covering screen
+        // Start transition: panels cover screen instantly (no fade in, just positioning)
         this.panels.forEach((panel, i) => {
             panel.style.transform = 'translateY(0)';
             panel.style.transition = 'none';
+            panel.style.opacity = '1';
         });
 
         // Force reflow
         void this.overlay.offsetWidth;
 
-        // Temporarily hide preloader so it doesn't peek through
         const preloader = document.querySelector('.preloader');
         if (preloader) {
+            // Bring preloader above overlay so crossfades are visible
+            preloader.style.zIndex = '10001';
+            // Start fully hidden
             preloader.style.transition = 'none';
             preloader.classList.remove('preloader-hidden');
             preloader.style.opacity = '0';
             preloader.style.visibility = 'hidden';
         }
 
-        // Allow panels to settle, then fade in preloader for loading phase
+        // Brief pause so panels settle, then crossfade into preloader
         setTimeout(() => {
             if (preloader) {
                 preloader.style.transition = 'opacity 0.5s ease-out, visibility 0.5s ease-out';
@@ -100,26 +103,32 @@ const PageTransitions = {
                 : Promise.resolve();
 
             waitForPreloader.then(() => {
-                // Fade out preloader before revealing page
-                const fadeOutPromise = (typeof Preloader !== 'undefined' && Preloader.hide)
-                    ? Preloader.hide()
-                    : Promise.resolve();
+                // Crossfade from preloader into ending transition
+                // Preloader fades out while panels begin sliding away (no fade out on panels)
+                if (preloader) {
+                    preloader.style.transition = 'opacity 0.6s ease-out, visibility 0.6s ease-out';
+                    preloader.style.opacity = '0';
+                    preloader.style.visibility = 'hidden';
+                }
 
-                fadeOutPromise.then(() => {
-                    // Now animate panels away to reveal the page
-                    this.panels.forEach((panel, i) => {
-                        const direction = i % 2 === 0 ? '-100%' : '100%';
-                        panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
-                        panel.style.transform = `translateY(${direction})`;
-                    });
-
-                    setTimeout(() => {
-                        this.overlay.classList.remove('transition-active');
-                        document.body.classList.remove('page-transitioning');
-                    }, 2900);
+                // Ending transition: panels slide away immediately (no fade, just movement)
+                this.panels.forEach((panel, i) => {
+                    const direction = i % 2 === 0 ? '-100%' : '100%';
+                    panel.style.transition = `transform 2.0s cubic-bezier(0.7, 0, 0.3, 1) ${i * 0.12}s`;
+                    panel.style.transform = `translateY(${direction})`;
                 });
+
+                // Clean up after animation completes
+                setTimeout(() => {
+                    this.overlay.classList.remove('transition-active');
+                    document.body.classList.remove('page-transitioning');
+                    if (preloader) {
+                        preloader.style.zIndex = '';
+                        preloader.style.display = 'none';
+                    }
+                }, 2900);
             });
-        }, 300); // Small delay so panels have covered screen before preloader fades in
+        }, 300);
     },
 
     // Play transition OUT (covering screen) then navigate

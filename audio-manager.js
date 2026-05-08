@@ -293,6 +293,9 @@ const SoundEffects = {
 
     setupCardHoverSounds() {
         const cards = document.querySelectorAll('.player-option');
+        const lastHoverTime = new Map();
+        const DEBOUNCE_MS = 200;
+
         cards.forEach(card => {
             const label = card.querySelector('.player-number')?.textContent?.trim();
             let soundName = null;
@@ -305,6 +308,10 @@ const SoundEffects = {
             if (!soundName) return;
 
             card.addEventListener('mouseenter', () => {
+                const now = Date.now();
+                const last = lastHoverTime.get(card) || 0;
+                if (now - last < DEBOUNCE_MS) return;
+                lastHoverTime.set(card, now);
                 this.play(soundName);
             });
 
