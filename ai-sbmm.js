@@ -11,15 +11,15 @@ const AISBMM = {
     sessionMetrics: {},
     difficultyLevel: 1, // 1 = Normal, 2 = Hard, 3 = Expert
     lastAnalysisTime: 0,
-    analysisCooldown: 30000, // ms between Gemini calls
+    analysisCooldown: 12000, // ms between Gemini calls
     originalQuestions: null,
 
     // Thresholds for automatic difficulty adjustment
     thresholds: {
         easyStreak: 3,       // Drop difficulty after 3 wrong in a row
-        hardStreak: 5,       // Raise difficulty after 5 correct in a row
+        hardStreak: 3,       // Raise difficulty after 3 correct in a row (in reasonable time)
         fastAnswerMs: 5000,  // Consider "fast" if answered under 5s
-        slowAnswerMs: 20000, // Consider "slow" if over 20s
+        slowAnswerMs: 18000, // Consider "slow" if over 18s — streak answers above this don't count
     },
 
     init() {
@@ -76,9 +76,11 @@ const AISBMM = {
             playerStats.correctStreak++;
             playerStats.wrongStreak = 0;
             playerStats.totalCorrect++;
+            if (answerTimeMs) playerStats.streakAnswerTimes.push(answerTimeMs);
         } else {
             playerStats.wrongStreak++;
             playerStats.correctStreak = 0;
+            playerStats.streakAnswerTimes = [];
             playerStats.totalWrong++;
         }
         if (answerTimeMs) {
@@ -107,7 +109,7 @@ const AISBMM = {
         this.sessionMetrics.players[playerNum] = this.sessionMetrics.players[playerNum] || {
             totalAnswers: 0, totalCorrect: 0, totalWrong: 0,
             correctStreak: 0, wrongStreak: 0,
-            answerTimes: [], lastAnswer: ''
+            answerTimes: [], streakAnswerTimes: [], lastAnswer: ''
         };
         return this.sessionMetrics.players[playerNum];
     },
@@ -139,7 +141,16 @@ const AISBMM = {
         let newLevel = this.difficultyLevel;
 
         if (stats.correctStreak >= this.thresholds.hardStreak) {
-            newLevel = Math.min(3, this.difficultyLevel + 1);
+            // Only raise difficulty if the streak answers were within a reasonable time.
+            // Average answer time across the streak must be under slowAnswerMs.
+            const times = stats.streakAnswerTimes || [];
+            const avgStreakTime = times.length > 0
+                ? times.reduce((a, b) => a + b, 0) / times.length
+                : 0;
+            const withinTime = times.length === 0 || avgStreakTime < this.thresholds.slowAnswerMs;
+            if (withinTime) {
+                newLevel = Math.min(3, this.difficultyLevel + 1);
+            }
         } else if (stats.wrongStreak >= this.thresholds.easyStreak) {
             newLevel = Math.max(1, this.difficultyLevel - 1);
         }
@@ -148,6 +159,7 @@ const AISBMM = {
             // Reset streaks so the very next answer doesn't immediately re-trigger
             stats.correctStreak = 0;
             stats.wrongStreak = 0;
+            stats.streakAnswerTimes = [];
             this.setDifficulty(newLevel);
         }
     },
