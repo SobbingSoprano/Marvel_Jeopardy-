@@ -16,10 +16,20 @@ const AISBMM = {
 
     // Thresholds for automatic difficulty adjustment
     thresholds: {
-        easyStreak: 3,       // Drop difficulty after 3 wrong in a row
-        hardStreak: 3,       // Raise difficulty after 3 correct in a row (in reasonable time)
-        fastAnswerMs: 5000,  // Consider "fast" if answered under 5s
-        slowAnswerMs: 18000, // Consider "slow" if over 18s — streak answers above this don't count
+        easyStreak: 3,        // Drop difficulty after 3 wrong in a row
+        skillScoreUp: 10,     // Raise difficulty when skillScore hits this (see scoreAnswer)
+        skillScoreDown: -6,   // Drop difficulty when skillScore hits this
+        fastAnswerMs: 5000,   // "Fast" answer — bonus multiplier applies
+        slowAnswerMs: 18000,  // "Slow" answer — no score awarded for correct answers
+    },
+
+    // Point-value → base skill weight.  Higher-value questions count more.
+    valueWeights: {
+        '$200':  1,
+        '$400':  2,
+        '$600':  3,
+        '$800':  4,
+        '$1000': 5,
     },
 
     init() {
@@ -72,6 +82,11 @@ const AISBMM = {
         // Per-player stats
         const playerStats = this.getPlayerStats(playerNum);
         playerStats.totalAnswers++;
+
+        // Weighted skill score delta for this answer
+        const delta = this.scoreAnswer(value, isCorrect, answerTimeMs);
+        playerStats.skillScore = (playerStats.skillScore || 0) + delta;
+
         if (isCorrect) {
             playerStats.correctStreak++;
             playerStats.wrongStreak = 0;
@@ -109,6 +124,7 @@ const AISBMM = {
         this.sessionMetrics.players[playerNum] = this.sessionMetrics.players[playerNum] || {
             totalAnswers: 0, totalCorrect: 0, totalWrong: 0,
             correctStreak: 0, wrongStreak: 0,
+            skillScore: 0,
             answerTimes: [], streakAnswerTimes: [], lastAnswer: ''
         };
         return this.sessionMetrics.players[playerNum];
@@ -133,25 +149,42 @@ const AISBMM = {
     },
 
     // ========================================
+    // SKILL SCORE CALCULATION
+    // ========================================
+
+    // Returns the skill delta for one answer.
+    // Correct: base weight (from value) × speed multiplier.
+    // Wrong:   negative weight proportional to value (higher-value wrong = bigger penalty).
+    scoreAnswer(value, isCorrect, answerTimeMs) {
+        const base = this.valueWeights[value] ?? 1;
+        if (!isCorrect) {
+            // Wrong answer — deduct half the base weight
+            return -(base * 0.5);
+        }
+        if (!answerTimeMs || answerTimeMs >= this.thresholds.slowAnswerMs) {
+            // Too slow — no score awarded
+            return 0;
+        }
+        // Speed multiplier: ranges from 1.0 (just under slowAnswerMs) to 2.0 (at fastAnswerMs or below)
+        const fast = this.thresholds.fastAnswerMs;
+        const slow = this.thresholds.slowAnswerMs;
+        const speedRatio = Math.max(0, Math.min(1, (slow - answerTimeMs) / (slow - fast)));
+        const speedMult = 1 + speedRatio; // 1.0–2.0
+        return base * speedMult;
+    },
+
+    // ========================================
     // DIFFICULTY EVALUATION
     // ========================================
 
     evaluateDifficulty(playerNum) {
         const stats = this.getPlayerStats(playerNum);
+        const score = stats.skillScore || 0;
         let newLevel = this.difficultyLevel;
 
-        if (stats.correctStreak >= this.thresholds.hardStreak) {
-            // Only raise difficulty if the streak answers were within a reasonable time.
-            // Average answer time across the streak must be under slowAnswerMs.
-            const times = stats.streakAnswerTimes || [];
-            const avgStreakTime = times.length > 0
-                ? times.reduce((a, b) => a + b, 0) / times.length
-                : 0;
-            const withinTime = times.length === 0 || avgStreakTime < this.thresholds.slowAnswerMs;
-            if (withinTime) {
-                newLevel = Math.min(3, this.difficultyLevel + 1);
-            }
-        } else if (stats.wrongStreak >= this.thresholds.easyStreak) {
+        if (score >= this.thresholds.skillScoreUp) {
+            newLevel = Math.min(3, this.difficultyLevel + 1);
+        } else if (score <= this.thresholds.skillScoreDown || stats.wrongStreak >= this.thresholds.easyStreak) {
             newLevel = Math.max(1, this.difficultyLevel - 1);
         }
 
@@ -169,6 +202,7 @@ const AISBMM = {
             p.correctStreak = 0;
             p.wrongStreak = 0;
             p.streakAnswerTimes = [];
+            p.skillScore = 0; // Reset score window after each level change
         });
     },
 
