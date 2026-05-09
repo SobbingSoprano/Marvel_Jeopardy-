@@ -4,14 +4,6 @@
  Skill-Based Match Making via Google Gemini Agent
  Tracks player performance & dynamically adjusts difficulty
 ============================================================
-
-HOW TO ENABLE GEMINI INTEGRATION:
-1. Get a Gemini API key from https://aistudio.google.com/app/apikey
-2. Set it: localStorage.setItem('mj_gemini_api_key', 'YOUR_KEY');
-3. The system will automatically call Gemini when metrics cross thresholds.
-
-DISABLE: Toggle the "AI-SBMM" switch on the homepage.
-============================================================
 */
 
 const AISBMM = {
@@ -153,6 +145,9 @@ const AISBMM = {
         }
 
         if (newLevel !== this.difficultyLevel) {
+            // Reset streaks so the very next answer doesn't immediately re-trigger
+            stats.correctStreak = 0;
+            stats.wrongStreak = 0;
             this.setDifficulty(newLevel);
         }
     },
@@ -185,7 +180,7 @@ const AISBMM = {
             return;
         }
 
-        // For levels 2+, we would integrate with Gemini here
+        // For levels 2+, integrate with Gemini here
         // to fetch dynamically generated harder questions.
         // The placeholder below shows the hook structure.
         this.requestGeminiQuestionUpdate();
@@ -215,6 +210,8 @@ const AISBMM = {
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
                 console.error('[AI-SBMM] Gemini proxy error:', response.status, errData.error || '');
+                // Back off a full cooldown so a broken endpoint isn't hammered
+                this.lastAnalysisTime = Date.now();
                 return;
             }
 
