@@ -26,8 +26,8 @@ const AISBMM = {
         this.enabled = localStorage.getItem('mj_ai_sbmm_enabled') === '1';
         this.difficultyLevel = parseInt(localStorage.getItem('mj_ai_sbmm_difficulty') || '1');
 
-        // Store original question set on first run
-        if (!this.originalQuestions) {
+        // Store original question set on first run (only on game pages that load questions.js)
+        if (!this.originalQuestions && typeof allQuestions !== 'undefined') {
             this.originalQuestions = JSON.parse(JSON.stringify(allQuestions));
         }
 
