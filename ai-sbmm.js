@@ -210,11 +210,9 @@ const AISBMM = {
         this.difficultyLevel = Math.max(1, Math.min(3, level));
         localStorage.setItem('mj_ai_sbmm_difficulty', this.difficultyLevel.toString());
         console.log('[AI-SBMM] Difficulty adjusted to:', this.difficultyLevel);
-        // Block any other player's streak from firing another level change immediately
+        // Reset all players' streaks/scores so no second level change can fire immediately.
+        // (JS is single-threaded, so this is sufficient — no pre-stamp needed.)
         this.resetAllPlayerStreaks();
-        // Stamp the cooldown NOW (synchronously) so a near-simultaneous second call
-        // to requestGeminiQuestionUpdate sees it and self-cancels.
-        this.lastAnalysisTime = Date.now();
         this.applyDifficultyToQuestions();
     },
 
@@ -254,8 +252,6 @@ const AISBMM = {
         if (now - this.lastAnalysisTime < this.analysisCooldown) {
             return; // Rate limited
         }
-        // lastAnalysisTime is already stamped synchronously in setDifficulty;
-        // update it again here in case someone calls this method directly.
         this.lastAnalysisTime = now;
 
         try {
