@@ -566,7 +566,9 @@
             // Hide question overlay and show "passed" feedback
             document.getElementById('questionOverlay').style.display = 'none';
             showFeedback(false, GameState.getCorrectAnswer(currentQuestion.category, currentQuestion.value), '[No Answer]', pointValue, false, true);
-            
+
+            if (typeof AISBMM !== 'undefined') AISBMM.recordNoAnswer(currentQuestion.category, currentQuestion.value, state.currentTurn);
+
             // Clear form
             document.getElementById('answerInput').value = '';
         });

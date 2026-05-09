@@ -32,8 +32,15 @@ Rules:
 - "question": A Jeopardy-style clue. Keep it concise — 12 to 20 words maximum. Same approximate length as a standard Jeopardy clue.
 - "answer": An array of 1-3 short acceptable answer strings, all lowercase, WITHOUT any Jeopardy phrasing like "What is" or "Who is". The game adds that itself.
   Good: ["thor", "thor odinson"]   Bad: ["What is Thor?", "Who is Thor?"]
+- Within EVERY difficulty level, question difficulty must scale with point value:
+    $200 = easiest in this tier (broad knowledge, iconic characters/events)
+    $400 = moderate
+    $600 = specific (supporting cast, exact titles, notable but non-headline events)
+    $800 = hard (obscure details, lesser-known facts)
+    $1000 = hardest in this tier (deep lore, creators, rare aliases, minor variants)
+  Think of difficulty level as raising the entire baseline — a $200 at difficulty 3 should feel like a $600 at difficulty 1.
 - Difficulty 2 (Hard): Require more specific Marvel knowledge — supporting characters, exact titles, less famous events.
-- Difficulty 3 (Expert): Deep-cut lore — obscure aliases, event issues, creators, less-known variants. Still keep the clue concise.
+- Difficulty 3 (Expert): Deep-cut lore — obscure aliases, storyline issue numbers, creators, less-known variants. Still keep the clue concise.
 - All questions must be factually accurate Marvel canon.
 - Do NOT wrap the JSON in markdown code blocks. Output raw JSON only.
 

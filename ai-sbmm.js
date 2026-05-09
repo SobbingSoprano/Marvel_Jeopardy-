@@ -153,8 +153,9 @@ const AISBMM = {
     // ========================================
 
     // Returns the skill delta for one answer.
-    // Correct: base weight (from value) × speed multiplier.
-    // Wrong:   negative weight proportional to value (higher-value wrong = bigger penalty).
+    // Correct:    base weight (from value) × speed multiplier (1.0–2.0).
+    // Wrong:      −(base × 0.5)  — partial penalty.
+    // No answer:  −(base × 1.25) — heavier penalty than wrong; player couldn't attempt it.
     scoreAnswer(value, isCorrect, answerTimeMs) {
         const base = this.valueWeights[value] ?? 1;
         if (!isCorrect) {
@@ -171,6 +172,36 @@ const AISBMM = {
         const speedRatio = Math.max(0, Math.min(1, (slow - answerTimeMs) / (slow - fast)));
         const speedMult = 1 + speedRatio; // 1.0–2.0
         return base * speedMult;
+    },
+
+    // Called when a question times out or is skipped with no answer submitted.
+    // Penalises harder than a wrong answer — the player couldn't even attempt it.
+    recordNoAnswer(category, value, playerNum) {
+        if (!this.enabled) return;
+
+        const base = this.valueWeights[value] ?? 1;
+        const penalty = -(base * 1.25);
+
+        const playerStats = this.getPlayerStats(playerNum);
+        playerStats.totalAnswers++;
+        playerStats.totalWrong++;
+        playerStats.skillScore = (playerStats.skillScore || 0) + penalty;
+
+        // Count as a wrong for streak purposes — feeds both skillScoreDown and easyStreak checks
+        playerStats.wrongStreak++;
+        playerStats.correctStreak = 0;
+        playerStats.streakAnswerTimes = [];
+
+        // Per-value stats
+        const valStats = this.getValueStats(value);
+        valStats.total++;
+
+        // Per-category stats
+        const catStats = this.getCategoryStats(category);
+        catStats.total++;
+
+        this.saveSessionMetrics();
+        this.evaluateDifficulty(playerNum);
     },
 
     // ========================================
