@@ -26,24 +26,28 @@ Current difficulty level: ${difficultyLevel} (1=Normal, 2=Hard, 3=Expert)
 Player Performance Summary:
 ${metricsSummary}
 
-Task: Generate updated question data for the following categories and values.
-Each entry must include:
-  - "question": the Jeopardy clue string (e.g. "This Asgardian is the god of thunder.")
-  - "answer": an array of acceptable raw content strings, lowercase, WITHOUT any Jeopardy phrasing.
-    Good: ["thor", "thor odinson"]  Bad: ["What is Thor?", "Who is Thor?"]
-    The game handles phrasing validation ("What is...", "Who is...") separately.
-Make questions harder for difficulty 2, much harder for difficulty 3.
-Keep the same Marvel theme. Questions should be accurate and factually correct.
+Task: Generate a COMPLETE and VALID JSON object with updated Jeopardy questions for ALL categories and values listed below.
+
+Rules:
+- "question": A Jeopardy-style clue. Keep it concise — 12 to 20 words maximum. Same approximate length as a standard Jeopardy clue.
+- "answer": An array of 1-3 short acceptable answer strings, all lowercase, WITHOUT any Jeopardy phrasing like "What is" or "Who is". The game adds that itself.
+  Good: ["thor", "thor odinson"]   Bad: ["What is Thor?", "Who is Thor?"]
+- Difficulty 2 (Hard): Require more specific Marvel knowledge — supporting characters, exact titles, less famous events.
+- Difficulty 3 (Expert): Deep-cut lore — obscure aliases, event issues, creators, less-known variants. Still keep the clue concise.
+- All questions must be factually accurate Marvel canon.
+- Do NOT wrap the JSON in markdown code blocks. Output raw JSON only.
 
 Categories: ${CATEGORIES.join(', ')}
-Values: ${VALUES.join(', ')}
+Values (point values per category): ${VALUES.join(', ')}
 
-Respond ONLY with valid JSON in this exact format:
+Output ONLY this JSON structure, nothing else:
 {
-  "CategoryName": {
-    "$200": { "question": "...", "answer": ["ans1", "ans2"] },
-    ...
-  }
+  "People": { "$200": { "question": "...", "answer": ["..."] }, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
+  "Powers": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
+  "Artifacts": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
+  "Media": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
+  "Teams": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
+  "Places": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} }
 }
 `.trim();
 }
@@ -90,7 +94,11 @@ export default async function handler(req, res) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 8192,
+                        responseMimeType: 'application/json'
+                    }
                 })
             }
         );

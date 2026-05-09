@@ -156,18 +156,31 @@ const AISBMM = {
         }
 
         if (newLevel !== this.difficultyLevel) {
-            // Reset streaks so the very next answer doesn't immediately re-trigger
-            stats.correctStreak = 0;
-            stats.wrongStreak = 0;
-            stats.streakAnswerTimes = [];
+            // setDifficulty calls resetAllPlayerStreaks(), which covers this player too.
             this.setDifficulty(newLevel);
         }
+    },
+
+    // Reset every player's streak counters so a level change can't be immediately
+    // re-triggered by another player whose independent streak is already at the threshold.
+    resetAllPlayerStreaks() {
+        const players = this.sessionMetrics.players || {};
+        Object.values(players).forEach(p => {
+            p.correctStreak = 0;
+            p.wrongStreak = 0;
+            p.streakAnswerTimes = [];
+        });
     },
 
     setDifficulty(level) {
         this.difficultyLevel = Math.max(1, Math.min(3, level));
         localStorage.setItem('mj_ai_sbmm_difficulty', this.difficultyLevel.toString());
         console.log('[AI-SBMM] Difficulty adjusted to:', this.difficultyLevel);
+        // Block any other player's streak from firing another level change immediately
+        this.resetAllPlayerStreaks();
+        // Stamp the cooldown NOW (synchronously) so a near-simultaneous second call
+        // to requestGeminiQuestionUpdate sees it and self-cancels.
+        this.lastAnalysisTime = Date.now();
         this.applyDifficultyToQuestions();
     },
 
@@ -207,6 +220,8 @@ const AISBMM = {
         if (now - this.lastAnalysisTime < this.analysisCooldown) {
             return; // Rate limited
         }
+        // lastAnalysisTime is already stamped synchronously in setDifficulty;
+        // update it again here in case someone calls this method directly.
         this.lastAnalysisTime = now;
 
         try {
