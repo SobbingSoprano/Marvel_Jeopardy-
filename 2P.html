@@ -124,7 +124,7 @@
             <div class="question-text" id="ddQText"></div>
             <form id="ddAnswerForm" class="answer-form">
                 <label for="ddAnswer">Your Answer:</label>
-                <input type="text" id="ddAnswer" class="question-input" placeholder="Type your answer..." required autofocus>
+                <input type="text" id="ddAnswer" class="question-input" placeholder='e.g., "Who is Captain America?"' required autofocus>
                 <div class="question-buttons">
                     <button type="submit" class="submit-btn">Submit Answer</button>
                 </div>
@@ -143,7 +143,7 @@
             <div class="question-text" id="qText"></div>
             <form id="answerForm" class="question-form">
                 <label for="answerInput" class="question-label">Enter your answer:</label>
-                <input type="text" id="answerInput" class="question-input" placeholder="e.g., What is Captain America?" autofocus required>
+                <input type="text" id="answerInput" class="question-input" placeholder='e.g., "Who is Captain America?"' autofocus required>
                 <div class="question-buttons">
                     <button type="submit" class="submit-btn">Submit</button>
                     <a href="#" class="cancel-btn" id="cancelAnswer">Cancel</a>
@@ -445,7 +445,9 @@
             document.getElementById('ddQText').textContent = GameState.getQuestion(category, value);
             
             overlay.style.display = 'flex';
-            document.getElementById('ddAnswer').focus();
+            const ddAnswerEl = document.getElementById('ddAnswer');
+            ddAnswerEl.placeholder = GameState.getRandomPlaceholder();
+            ddAnswerEl.focus();
             
             if (typeof AISBMM !== 'undefined') AISBMM.startQuestionTimer(category, value);
         }
@@ -490,7 +492,9 @@
             document.getElementById('qText').textContent = GameState.getQuestion(category, value);
             
             overlay.style.display = 'flex';
-            document.getElementById('answerInput').focus();
+            const answerEl = document.getElementById('answerInput');
+            answerEl.placeholder = GameState.getRandomPlaceholder();
+            answerEl.focus();
             
             if (typeof AISBMM !== 'undefined') AISBMM.startQuestionTimer(category, value);
         }

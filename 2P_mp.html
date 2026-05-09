@@ -166,7 +166,7 @@
             <div class="question-text" id="qText"></div>
             <form id="answerForm" class="question-form">
                 <label for="answerInput" class="question-label">Your answer:</label>
-                <input type="text" id="answerInput" class="question-input" placeholder="e.g., What is Captain America?" autofocus required>
+                <input type="text" id="answerInput" class="question-input" placeholder='e.g., "Who is Captain America?"' autofocus required>
                 <div class="question-buttons">
                     <button type="submit" class="submit-btn">Submit</button>
                 </div>
@@ -555,7 +555,9 @@
             document.getElementById('qPlayerIndicator').textContent = 'Your turn to answer!';
             document.getElementById('qText').textContent = q.questionText;
             
-            document.getElementById('answerInput').focus();
+            const answerEl = document.getElementById('answerInput');
+            answerEl.placeholder = GameState.getRandomPlaceholder();
+            answerEl.focus();
         }
 
         // Show watching question

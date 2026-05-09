@@ -242,18 +242,37 @@ const AISBMM = {
             const jsonStr = jsonMatch[1].trim();
             const newQuestions = JSON.parse(jsonStr);
 
+            let replaced = 0;
+            let skipped = 0;
+
             // Merge new questions into allQuestions
             Object.keys(newQuestions).forEach(cat => {
-                if (allQuestions[cat]) {
-                    Object.keys(newQuestions[cat]).forEach(val => {
-                        if (allQuestions[cat][val]) {
-                            allQuestions[cat][val] = newQuestions[cat][val];
-                        }
-                    });
-                }
+                if (!allQuestions[cat]) return;
+                Object.keys(newQuestions[cat]).forEach(val => {
+                    if (!allQuestions[cat][val]) return;
+                    const entry = newQuestions[cat][val];
+
+                    // Validate structure: question must be a non-empty string,
+                    // answer must be a non-empty array of strings
+                    if (
+                        typeof entry.question !== 'string' || !entry.question.trim() ||
+                        !Array.isArray(entry.answer) || entry.answer.length === 0 ||
+                        !entry.answer.every(a => typeof a === 'string' && a.trim())
+                    ) {
+                        console.warn(`[AI-SBMM] Skipping malformed entry for ${cat} ${val}:`, entry);
+                        skipped++;
+                        return;
+                    }
+
+                    allQuestions[cat][val] = {
+                        question: entry.question.trim(),
+                        answer: entry.answer.map(a => a.toLowerCase().trim())
+                    };
+                    replaced++;
+                });
             });
 
-            console.log('[AI-SBMM] Questions updated from Gemini response.');
+            console.log(`[AI-SBMM] Questions updated: ${replaced} replaced, ${skipped} skipped.`);
         } catch (err) {
             console.error('[AI-SBMM] Failed to parse Gemini response:', err);
         }
@@ -322,6 +341,16 @@ const AISBMM = {
     clearSessionMetrics() {
         this.sessionMetrics = {};
         sessionStorage.removeItem('mj_ai_sbmm_metrics');
+    },
+
+    // Reset difficulty and metrics at the start of every new game
+    resetForNewGame() {
+        this.difficultyLevel = 1;
+        localStorage.setItem('mj_ai_sbmm_difficulty', '1');
+        this.lastAnalysisTime = 0;
+        this.clearSessionMetrics();
+        this.originalQuestions = null;
+        console.log('[AI-SBMM] Reset for new game — Difficulty: 1');
     }
 };
 

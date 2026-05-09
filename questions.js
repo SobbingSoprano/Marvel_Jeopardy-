@@ -307,9 +307,12 @@ const GameState = {
     
     // Valid Jeopardy-style phrasing prefixes
     validPhrases: [
-        'what is', "what's", 'who is', "who's",
-        'where is', "where's", 'when is', "when's",
-        'how is', "how's", 'why is'
+        'what is', "what's", 'what are',
+        'who is', "who's", 'who are',
+        'where is', "where's", 'where are',
+        'when is', "when's", 'when are',
+        'how is', "how's", 'how are',
+        'why is', 'why are'
     ],
 
     // Check if answer includes proper Jeopardy phrasing
@@ -333,8 +336,8 @@ const GameState = {
     normalizeAnswer(answer) {
         let normalized = answer.toLowerCase().trim();
 
-        // Remove "what is", "who is", "what's", "who's" prefixes
-        normalized = normalized.replace(/^(what is|who is|what's|who's|where is|when is|how is|why is|where's|when's|how's)\s+/i, '');
+        // Remove "what is/are", "who is/are", etc. prefixes
+        normalized = normalized.replace(/^(what is|what are|who is|who are|what's|who's|where is|where are|when is|when are|how is|how are|why is|why are|where's|when's|how's)\s+/i, '');
 
         // Remove leading articles "the", "a", "an"
         normalized = normalized.replace(/^(the|a|an)\s+/i, '');
@@ -422,6 +425,20 @@ const GameState = {
         // Capitalize first letter of answer
         const formattedAnswer = answer.charAt(0).toUpperCase() + answer.slice(1);
         return `${prefix} ${formattedAnswer}?`;
+    },
+
+    // Rotate through 4 placeholder examples each time a question overlay opens
+    _placeholderIndex: 0,
+    placeholderExamples: [
+        'e.g., "Who is Captain America?"',
+        'e.g., "What is the Infinity Gauntlet?"',
+        'e.g., "Who are the Guardians of the Galaxy?"',
+        'e.g., "What is Wakanda?"'
+    ],
+    getRandomPlaceholder() {
+        const example = this.placeholderExamples[this._placeholderIndex % this.placeholderExamples.length];
+        this._placeholderIndex++;
+        return example;
     }
 };
 

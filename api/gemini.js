@@ -27,10 +27,13 @@ Player Performance Summary:
 ${metricsSummary}
 
 Task: Generate updated question data for the following categories and values.
-Each entry must include: "question" (string), "answer" (array of acceptable strings).
-Answers MUST require Jeopardy-style phrasing ("What is...", "Who is...").
+Each entry must include:
+  - "question": the Jeopardy clue string (e.g. "This Asgardian is the god of thunder.")
+  - "answer": an array of acceptable raw content strings, lowercase, WITHOUT any Jeopardy phrasing.
+    Good: ["thor", "thor odinson"]  Bad: ["What is Thor?", "Who is Thor?"]
+    The game handles phrasing validation ("What is...", "Who is...") separately.
 Make questions harder for difficulty 2, much harder for difficulty 3.
-Keep the same Marvel theme. Questions should be accurate and fair.
+Keep the same Marvel theme. Questions should be accurate and factually correct.
 
 Categories: ${CATEGORIES.join(', ')}
 Values: ${VALUES.join(', ')}

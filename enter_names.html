@@ -145,6 +145,9 @@
             // Save names to game state
             GameState.setPlayerNames(names);
             
+            // Reset AI-SBMM so every new game starts at difficulty 1
+            if (typeof AISBMM !== 'undefined') AISBMM.resetForNewGame();
+
             // Navigate with audio fade and transition
             PageTransitions.navigateTo(`${playerCount}P.html`);
         });
