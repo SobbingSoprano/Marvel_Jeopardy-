@@ -209,7 +209,12 @@ const AISBMM = {
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                console.error('[AI-SBMM] Gemini proxy error:', response.status, errData.error || '');
+                console.error(
+                    '[AI-SBMM] Gemini proxy error:', response.status,
+                    '| Gemini status:', errData.status || 'unknown',
+                    '| Message:', errData.error || '',
+                    '| Details:', errData.details || '(none)'
+                );
                 // Back off a full cooldown so a broken endpoint isn't hammered
                 this.lastAnalysisTime = Date.now();
                 return;
