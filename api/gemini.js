@@ -16,7 +16,7 @@ Set it in Vercel Dashboard:
 // Hardcoded game structure (mirrors questions.js)
 const CATEGORIES = ["People", "Powers", "Artifacts", "Media", "Teams", "Places"];
 const VALUES = ["$200", "$400", "$600", "$800", "$1000"];
-const MODEL = 'gemini-3.1-flash';
+const MODEL = 'gemini-3-flash-preview';
 
 function buildPrompt(difficultyLevel, metricsSummary) {
     return `
