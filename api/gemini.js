@@ -156,8 +156,7 @@ export default async function handler(req, res) {
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
                             temperature: 0.2,
-                            maxOutputTokens: 256,
-                            responseMimeType: 'application/json'
+                            maxOutputTokens: 256
                         }
                     })
                 }
@@ -171,11 +170,22 @@ export default async function handler(req, res) {
 
             const geminiData = await geminiRes.json();
             const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+            console.log('[Gemini Proxy] Telephone raw response:', rawText);
             let scores;
             try {
-                scores = JSON.parse(rawText.trim());
+                const parsed = JSON.parse(rawText.trim());
+                if (Array.isArray(parsed)) {
+                    // Gemini returned a bare array — ideal
+                    scores = parsed;
+                } else if (parsed && typeof parsed === 'object') {
+                    // Gemini wrapped it in an object; find the first array value
+                    const found = Object.values(parsed).find(v => Array.isArray(v));
+                    scores = found || pairs.map(() => 0);
+                } else {
+                    scores = pairs.map(() => 0);
+                }
             } catch (_) {
-                // Attempt to extract JSON array from any surrounding text (handles floats too)
+                // Fall back to regex extraction
                 const match = rawText.match(/\[[\d.,\s-]+\]/);
                 if (match) {
                     try { scores = JSON.parse(match[0]); } catch (_2) { scores = pairs.map(() => 0); }
@@ -184,6 +194,14 @@ export default async function handler(req, res) {
                 }
             }
 
+            // Ensure scores is a valid array of numbers
+            if (!Array.isArray(scores)) scores = pairs.map(() => 0);
+            scores = scores.map(s => {
+                const n = Number(s);
+                return isNaN(n) ? 0 : Math.max(0, Math.min(100, Math.round(n)));
+            });
+
+            console.log('[Gemini Proxy] Telephone final scores:', scores);
             return res.status(200).json({ scores });
         } catch (err) {
             console.error('[Gemini Proxy] Telephone request failed:', err);

@@ -43,6 +43,7 @@ const Telephone = {
     _myPlayerNumber: null,
     _isHost: false,
     _injected: false,
+    _myTurnActive: false,
 
     // ── Public API ─────────────────────────────────────────────────────────
 
@@ -241,6 +242,10 @@ const Telephone = {
     },
 
     _showMyTurn(wordShown, myPlayerNumber) {
+        // Guard: if already showing the input, don't reset it (prevents clearing mid-type)
+        if (this._myTurnActive) return;
+        this._myTurnActive = true;
+
         this._stopTimer();
         this._section('telInput');
         document.getElementById('telWord').textContent = wordShown.toUpperCase();
@@ -251,6 +256,7 @@ const Telephone = {
         const startTime = Date.now();
 
         this._submitCallback = async (word) => {
+            this._myTurnActive = false;
             this._submitCallback = null;
             this._stopTimer();
             const elapsed = (Date.now() - startTime) / 1000;
@@ -277,6 +283,7 @@ const Telephone = {
             }
             if (secs <= 0) {
                 this._stopTimer();
+                this._myTurnActive = false;
                 // Auto-timeout
                 if (this._submitCallback) {
                     this._submitCallback = null;
@@ -485,6 +492,7 @@ const Telephone = {
     },
 
     _hide() {
+        this._myTurnActive = false;
         const el = document.getElementById('telephoneOverlay');
         if (el) el.style.display = 'none';
     },

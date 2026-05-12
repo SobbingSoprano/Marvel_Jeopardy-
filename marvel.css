@@ -36,12 +36,6 @@ body {
     pointer-events: none;
 }
 
-/* Legacy fallback classes - no longer auto-animated */
-.preloader-homepage,
-.preloader-gamepage {
-    /* Animation removed - now controlled by preloader.js */
-}
-
 @keyframes fadeOut {
     to {
         opacity: 0;
