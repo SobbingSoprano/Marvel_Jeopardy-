@@ -28,9 +28,15 @@
     <!-- Security Utilities -->
     <script src="security.js"></script>
     
+    <!-- Firebase SDK (Community Training match submission) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <!-- Game Logic -->
+    <script src="firebase-config.js"></script>
     <script src="questions.js"></script>
     <script src="ai-sbmm.js"></script>
+    <script src="community-training.js"></script>
 </head>
 
 <body class="game-page">
@@ -228,7 +234,10 @@
 
         document.getElementById('winnerDisplay').textContent = winners.join(' & ');
         document.getElementById('resultsScreen').style.display = 'flex';
-        
+
+        // Submit anonymised match data to the Community Training pool
+        if (typeof CommTraining !== 'undefined') CommTraining.submitMatchData();
+
         // Dramatic flash on results reveal
         ScreenEffects.flash('white');
     }

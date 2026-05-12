@@ -154,6 +154,8 @@ const AISBMM = {
             this.logEvent('AI-SBMM enabled — Difficulty ' + ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel], 'system');
             this._registerStatsShortcut();
         }
+        // Sync Community Training button visibility / auto-disable CT if SBMM turned off
+        if (typeof CommTraining !== 'undefined') CommTraining.setSbmmActive(this.enabled);
         return this.enabled;
     },
 
@@ -185,8 +187,20 @@ const AISBMM = {
         playerStats.totalAnswers++;
 
         // Weighted skill score delta for this answer
-        const delta = this.scoreAnswer(value, isCorrect, answerTimeMs);
+        const rawDelta = this.scoreAnswer(value, isCorrect, answerTimeMs);
+        // Apply community training modifier (subtle ±20% nudge based on aggregate data)
+        const ctMod = (typeof CommTraining !== 'undefined' && CommTraining.enabled)
+            ? CommTraining.getScoreModifier(category, value, isCorrect)
+            : 1.0;
+        const delta = rawDelta * ctMod;
         playerStats.skillScore = (playerStats.skillScore || 0) + delta;
+
+        // Log this pick for community training (pick index = total answered so far + 1)
+        if (typeof CommTraining !== 'undefined') {
+            const pickIndex = (this.sessionMetrics.pickCount || 0) + 1;
+            CommTraining.logPick(category, value, pickIndex, isCorrect);
+        }
+        this.sessionMetrics.pickCount = (this.sessionMetrics.pickCount || 0) + 1;
 
         if (isCorrect) {
             playerStats.correctStreak++;
@@ -294,12 +308,24 @@ const AISBMM = {
         if (!this.enabled) return;
 
         const base = this.valueWeights[value] ?? 1;
-        const penalty = -(base * 1.25);
+        const rawPenalty = -(base * 1.25);
+        // Apply community training modifier (commonly-missed categories penalise less)
+        const ctMod = (typeof CommTraining !== 'undefined' && CommTraining.enabled)
+            ? CommTraining.getScoreModifier(category, value, false)
+            : 1.0;
+        const penalty = rawPenalty * ctMod;
 
         const playerStats = this.getPlayerStats(playerNum);
         playerStats.totalAnswers++;
         playerStats.totalWrong++;
         playerStats.skillScore = (playerStats.skillScore || 0) + penalty;
+
+        // Log this no-answer for community training
+        if (typeof CommTraining !== 'undefined') {
+            const pickIndex = (this.sessionMetrics.pickCount || 0) + 1;
+            CommTraining.logPick(category, value, pickIndex, false);
+        }
+        this.sessionMetrics.pickCount = (this.sessionMetrics.pickCount || 0) + 1;
 
         // Count as a wrong for streak purposes — feeds both skillScoreDown and easyStreak checks
         playerStats.wrongStreak++;
@@ -607,6 +633,8 @@ const AISBMM = {
         this.logEntries = [];
         this.logEvent('New game started — Difficulty reset to Normal', 'system');
         console.log('[AI-SBMM] Reset for new game — Difficulty: 1');
+        // Clear the community training pick log for the new match
+        if (typeof CommTraining !== 'undefined') CommTraining.clearMatchLog();
     }
 };
 

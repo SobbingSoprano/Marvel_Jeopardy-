@@ -37,6 +37,7 @@
     <script src="questions.js"></script>
     <script src="multiplayer.js"></script>
     <script src="ai-sbmm.js"></script>
+    <script src="community-training.js"></script>
 </head>
 
 <body class="game-page">
@@ -279,7 +280,12 @@
             }
 
             document.getElementById('winnerDisplay').textContent = winners.join(' & ');
-            
+
+            // Only the host submits match data to avoid duplicate writes
+            if (typeof CommTraining !== 'undefined' && MultiplayerManager.isHost) {
+                CommTraining.submitMatchData();
+            }
+
             // Dramatic flash on results reveal
             ScreenEffects.flash('white');
         }
