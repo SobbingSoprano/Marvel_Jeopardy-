@@ -89,7 +89,7 @@ const PageTransitions = {
 
             // Position preloader above the overlay, but start fully transparent
             // This is the single source of truth — no duplicate z-index/opacity sets
-            preloader.style.zIndex = '10001';
+            preloader.style.zIndex = '110000';
             preloader.style.opacity = '0';
             preloader.style.visibility = 'visible';
             preloader.style.pointerEvents = 'all';

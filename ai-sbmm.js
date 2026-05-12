@@ -603,6 +603,7 @@ const AISBMM = {
     updateToggleButton() {
         const btn = document.getElementById('aiSbmmBtn');
         if (btn) btn.classList.toggle('active', this.enabled);
+        // keep CSS class name consistent (tab card uses same id)
     },
 
     // ========================================

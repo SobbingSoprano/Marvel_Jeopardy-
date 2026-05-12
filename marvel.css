@@ -2254,60 +2254,166 @@ body.game-page {
 }
 
 /* ============================================================
-   AI-SBMM TOGGLE
+   AI-SBMM & COMMUNITY TRAINING — SIDE-PEEK CARD TABS
+   Styled after the player-select cards. Stack vertically like
+   two tabs in a binder; each peeks out from the right edge
+   and slides fully into view on hover.
    ============================================================ */
 
-.ai-sbmm-toggle {
-    display: inline-block;
+/* Container — fixed to right edge, column of tabs */
+.sbmm-tab-group {
+    position: fixed;
+    top: 3vh;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 500;
+    align-items: flex-end;
 }
 
-.ai-sbmm-btn {
+/* ── Individual tab wrapper ─────────────────────────────── */
+/* The wrapper is as wide as the card; it overflows the
+   viewport by (card width – peek width) so only a sliver
+   shows at rest. translateX lifts it flush with right edge. */
+.sbmm-tab-wrap,
+.ct-tab-wrap {
+    position: relative;
+    /*  card width 140px, peek 28px → translate right by 112px */
+    transform: translateX(112px);
+    transition: transform 0.42s cubic-bezier(0.34, 1.38, 0.64, 1);
+}
+
+.sbmm-tab-wrap:hover,
+.sbmm-tab-wrap:focus-within,
+.ct-tab-wrap:hover,
+.ct-tab-wrap:focus-within {
+    transform: translateX(0);
+}
+
+/* ── Card face (the visible tab button) ─────────────────── */
+.sbmm-tab-card,
+.ct-tab-card {
+    width: 140px;
+    height: 48px;
+    background: #000;
+    border: 3px solid #fff;
+    border-radius: 10px 0 0 10px;   /* flat on right — flush with viewport edge */
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 12px;
     font-family: 'Bungee', cursive;
-    font-size: 0.75em;
-    padding: 0.5em 0.9em;
-    background: rgba(0, 0, 0, 0.6);
-    color: #666;
-    border: 2px solid #444;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
+    font-size: 0.68em;
     letter-spacing: 1px;
-}
-
-.ai-sbmm-btn svg {
-    width: 14px;
-    height: 14px;
-}
-
-.ai-sbmm-btn:hover {
-    border-color: #ffaa00;
-    color: #ffaa00;
-}
-
-.ai-sbmm-btn.active {
-    background: rgba(255, 170, 0, 0.15);
-    border-color: #ffaa00;
-    color: #ffaa00;
-    box-shadow: 0 0 15px rgba(255, 170, 0, 0.3);
-}
-
-/* AI-SBMM tooltip */
-.ai-sbmm-toggle {
+    text-transform: uppercase;
+    color: #888;
+    cursor: pointer;
+    box-shadow: -4px 4px 0px rgba(255, 255, 255, 0.15);
+    transition: background 0.25s ease, color 0.25s ease,
+                border-color 0.25s ease, box-shadow 0.25s ease;
+    /* cancel default button styles */
+    border-right: none;
+    outline: none;
+    white-space: nowrap;
     position: relative;
+    z-index: 1;
 }
 
-.ai-sbmm-tooltip {
+.sbmm-tab-card svg,
+.ct-tab-card svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+/* ── Card back peek strip (mimics the ::before card stack) ─ */
+.sbmm-tab-card::before,
+.ct-tab-card::before {
+    content: '';
     position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
+    inset: 0;
+    background: #cc0000;
+    border: 3px solid #fff;
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+    z-index: -1;
+    transform: translate(-5px, 5px) rotate(-2deg);
+    transition: transform 0.42s cubic-bezier(0.34, 1.38, 0.64, 1);
+}
+
+/* ── AI-SBMM colour theme: gold ────────────────────────── */
+.sbmm-tab-card:hover,
+.sbmm-tab-wrap:hover .sbmm-tab-card,
+.sbmm-tab-wrap:focus-within .sbmm-tab-card {
+    background: #111;
+    border-color: #ffaa00;
+    color: #ffaa00;
+    box-shadow: -6px 6px 0px rgba(255, 170, 0, 0.25);
+}
+
+.sbmm-tab-wrap:hover .sbmm-tab-card::before,
+.sbmm-tab-wrap:focus-within .sbmm-tab-card::before {
+    transform: translate(-10px, 8px) rotate(-5deg);
+}
+
+.sbmm-tab-card.active {
+    background: rgba(255, 170, 0, 0.12);
+    border-color: #ffaa00;
+    color: #ffaa00;
+    box-shadow: -4px 4px 0px rgba(255, 170, 0, 0.3);
+}
+
+/* ── Community Training colour theme: blue ─────────────── */
+.ct-tab-card:hover,
+.ct-tab-wrap:hover .ct-tab-card,
+.ct-tab-wrap:focus-within .ct-tab-card {
+    background: #111;
+    border-color: #00aaff;
+    color: #00aaff;
+    box-shadow: -6px 6px 0px rgba(0, 170, 255, 0.25);
+}
+
+.ct-tab-wrap:hover .ct-tab-card::before,
+.ct-tab-wrap:focus-within .ct-tab-card::before {
+    transform: translate(-10px, 8px) rotate(-5deg);
+}
+
+.ct-tab-card.active {
+    background: rgba(0, 170, 255, 0.12);
+    border-color: #00aaff;
+    color: #00aaff;
+    box-shadow: -4px 4px 0px rgba(0, 170, 255, 0.3);
+}
+
+/* ── CT tab: invisible & non-interactive until SBMM is on ── */
+.ct-tab-wrap {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform      0.42s cubic-bezier(0.34, 1.38, 0.64, 1),
+                opacity        0.35s ease,
+                visibility     0.35s ease;
+}
+
+.ct-tab-wrap.ct-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* ── Tooltip panel ─────────────────────────────────────── */
+/* Opens to the LEFT of the card (card is flush with right edge) */
+.sbmm-tab-tooltip,
+.ct-tab-tooltip {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 14px);
+    transform: translateY(-50%) translateX(8px);
     width: 260px;
     padding: 1em 1.2em;
     background: #111;
-    border: 2px solid #ffaa00;
     border-radius: 10px;
     color: #fff;
     font-family: 'Anton', sans-serif;
@@ -2315,42 +2421,65 @@ body.game-page {
     line-height: 1.5;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-6px);
-    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
     pointer-events: none;
     z-index: 1000;
-    box-shadow: 0 0 20px rgba(255, 170, 0, 0.25);
+    white-space: normal;
 }
 
-.ai-sbmm-tooltip::before {
+/* Arrow pointing right toward the card */
+.sbmm-tab-tooltip::after,
+.ct-tab-tooltip::after {
     content: '';
     position: absolute;
-    top: -8px;
-    right: 20px;
+    top: 50%;
+    right: -8px;
+    transform: translateY(-50%);
     width: 0;
     height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 8px solid #ffaa00;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
 }
 
-.ai-sbmm-tooltip strong {
+/* Gold border + arrow for SBMM */
+.sbmm-tab-tooltip {
+    border: 2px solid #ffaa00;
+    box-shadow: 0 0 20px rgba(255, 170, 0, 0.2);
+}
+.sbmm-tab-tooltip::after {
+    border-left: 8px solid #ffaa00;
+}
+
+/* Blue border + arrow for CT */
+.ct-tab-tooltip {
+    border: 2px solid #00aaff;
+    box-shadow: 0 0 20px rgba(0, 170, 255, 0.2);
+}
+.ct-tab-tooltip::after {
+    border-left: 8px solid #00aaff;
+}
+
+.sbmm-tab-tooltip strong,
+.ct-tab-tooltip strong {
     display: block;
     font-family: 'Bungee', cursive;
     font-size: 0.95em;
-    color: #ffaa00;
     margin-bottom: 0.4em;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
+.sbmm-tab-tooltip strong { color: #ffaa00; }
+.ct-tab-tooltip   strong { color: #00aaff; }
 
-.ai-sbmm-tooltip p {
+.sbmm-tab-tooltip p,
+.ct-tab-tooltip   p {
     margin: 0;
     color: #ccc;
     font-size: 0.9em;
 }
 
-.ai-sbmm-tooltip .tooltip-hint {
+.sbmm-tab-tooltip .tooltip-hint,
+.ct-tab-tooltip   .tooltip-hint {
     display: block;
     margin-top: 0.6em;
     font-family: 'Bungee', cursive;
@@ -2360,144 +2489,14 @@ body.game-page {
     letter-spacing: 0.5px;
 }
 
-/* Show tooltip on hover/focus */
-.ai-sbmm-toggle:hover .ai-sbmm-tooltip,
-.ai-sbmm-toggle:focus-within .ai-sbmm-tooltip {
+/* Show tooltip when the tab wrapper is hovered / focused */
+.sbmm-tab-wrap:hover .sbmm-tab-tooltip,
+.sbmm-tab-wrap:focus-within .sbmm-tab-tooltip,
+.ct-tab-wrap:hover .ct-tab-tooltip,
+.ct-tab-wrap:focus-within .ct-tab-tooltip {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
-}
-
-/* ============================================================
-   COMMUNITY TRAINING TOGGLE
-   Sits directly below the AI-SBMM button.
-   Hidden by default; fades in when AI-SBMM is active.
-   ============================================================ */
-
-.ct-toggle {
-    display: inline-block;
-    position: relative;
-    margin-top: 8px;
-    width: 100%;
-    /* Hidden until SBMM is enabled */
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateY(-4px);
-    transition: opacity 0.35s ease, visibility 0.35s ease, transform 0.35s ease;
-}
-
-.ct-toggle.ct-visible {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateY(0);
-}
-
-.ct-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: 'Bungee', cursive;
-    font-size: 0.75em;
-    padding: 0.5em 0.9em;
-    background: rgba(0, 0, 0, 0.6);
-    color: #666;
-    border: 2px solid #444;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.ct-btn svg {
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-}
-
-.ct-btn:hover {
-    border-color: #00aaff;
-    color: #00aaff;
-}
-
-.ct-btn.active {
-    background: rgba(0, 170, 255, 0.15);
-    border-color: #00aaff;
-    color: #00aaff;
-    box-shadow: 0 0 15px rgba(0, 170, 255, 0.3);
-}
-
-/* CT tooltip */
-.ct-tooltip {
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
-    width: 280px;
-    padding: 1em 1.2em;
-    background: #111;
-    border: 2px solid #00aaff;
-    border-radius: 10px;
-    color: #fff;
-    font-family: 'Anton', sans-serif;
-    font-size: 0.85em;
-    line-height: 1.5;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-6px);
-    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
-    pointer-events: none;
-    z-index: 1000;
-    box-shadow: 0 0 20px rgba(0, 170, 255, 0.25);
-}
-
-.ct-tooltip::before {
-    content: '';
-    position: absolute;
-    top: -8px;
-    right: 20px;
-    width: 0;
-    height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 8px solid #00aaff;
-}
-
-.ct-tooltip strong {
-    display: block;
-    font-family: 'Bungee', cursive;
-    font-size: 0.95em;
-    color: #00aaff;
-    margin-bottom: 0.4em;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.ct-tooltip p {
-    margin: 0 0 0.4em;
-    color: #ccc;
-    font-size: 0.9em;
-}
-
-.ct-tooltip .tooltip-hint {
-    display: block;
-    margin-top: 0.6em;
-    font-family: 'Bungee', cursive;
-    font-size: 0.75em;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Show CT tooltip on hover/focus */
-.ct-toggle:hover .ct-tooltip,
-.ct-toggle:focus-within .ct-tooltip {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
+    transform: translateY(-50%) translateX(0);
 }
 
 /* ============================================================
