@@ -106,29 +106,7 @@ Scoring rubric:
 IMPORTANT: Compound words and common phrases score HIGH. "jump" → "rope" scores 70+ (jump rope). "fish" → "gold" scores 65+ (goldfish). Be GENEROUS with creative but valid connections.
 
 Word pairs to score:
-${pairList}
-
-Return ONLY a JSON array of integers, one score per pair, in order. Example for 3 pairs: [85, 62, 5]
-Output ONLY the raw JSON array. No explanation, no markdown, no code fences.`.trim();
-}
-
-export default async function handler(req, res) {
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed. Use POST.' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
+${pairList}`.trim();
         console.error('[Gemini Proxy] GEMINI_API_KEY environment variable not set');
         return res.status(500).json({
             error: 'Server misconfigured: GEMINI_API_KEY not set',
@@ -156,7 +134,11 @@ export default async function handler(req, res) {
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
                             temperature: 0.2,
-                            maxOutputTokens: 256
+                            responseMimeType: 'application/json',
+                            responseSchema: {
+                                type: 'ARRAY',
+                                items: { type: 'INTEGER', minimum: 0, maximum: 100 }
+                            }
                         }
                     })
                 }
@@ -221,8 +203,11 @@ export default async function handler(req, res) {
                 }
             }
 
-            // Last resort: zeros
-            if (!Array.isArray(scores)) scores = pairs.map(() => 0);
+            // Last resort: pick out any integers present in the string (handles truncated arrays)
+            if (!Array.isArray(scores)) {
+                const nums = [...trimmed.matchAll(/\b(\d{1,3})\b/g)].map(m => parseInt(m[1], 10)).filter(n => n <= 100);
+                scores = nums.length > 0 ? nums : pairs.map(() => 0);
+            }
 
             // Normalise to clamped integers
             scores = scores.map(s => {
@@ -283,4 +268,3 @@ export default async function handler(req, res) {
         console.error('[Gemini Proxy] Request failed:', err);
         return res.status(500).json({ error: 'Internal server error', details: err.message });
     }
-}
