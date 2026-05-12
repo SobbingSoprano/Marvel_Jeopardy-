@@ -341,7 +341,11 @@ const Telephone = {
                 : null
         }));
 
+        console.group('%c[Telephone] Scoring', 'color:#ff4444');
+        console.log('Pairs sent to Gemini:', JSON.parse(JSON.stringify(pairs)));
+
         let scores = {};
+        let geminiSucceeded = false;
 
         try {
             const res = await fetch('/api/gemini', {
@@ -353,11 +357,15 @@ const Telephone = {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
             const data = await res.json();
+            console.log('Raw API response:', data);
+
             let rawArr = data.scores;
 
             if (!Array.isArray(rawArr)) {
                 try { rawArr = JSON.parse(data.text || '[]'); } catch (_) { rawArr = []; }
             }
+
+            console.log('Score array from Gemini:', rawArr);
 
             pairs.forEach((pair, i) => {
                 const raw = rawArr[i] !== undefined ? Number(rawArr[i]) : 0;
@@ -365,10 +373,28 @@ const Telephone = {
                     ? 0
                     : Math.max(0, Math.min(100, Math.round(raw)));
             });
+
+            // If every non-null-response player scored 0, Gemini probably returned bad data
+            const respondedPairs = pairs.filter(p => p.response !== null);
+            const allZero = respondedPairs.length > 0 && respondedPairs.every(p => scores[p.playerNumber] === 0);
+            if (!allZero) geminiSucceeded = true;
+
+            console.log('Mapped scores:', { ...scores }, allZero ? '(all-zero — treating as failure)' : '');
         } catch (err) {
-            console.warn('[Telephone] Gemini scoring failed, using random fallback:', err);
-            pairs.forEach(pair => { scores[pair.playerNumber] = Math.floor(Math.random() * 60) + 20; });
+            console.warn('[Telephone] Gemini fetch failed:', err);
         }
+
+        if (!geminiSucceeded) {
+            console.warn('[Telephone] Falling back to random scores');
+            pairs.forEach(pair => {
+                scores[pair.playerNumber] = pair.response === null
+                    ? 0
+                    : Math.floor(Math.random() * 61) + 20; // 20–80
+            });
+        }
+
+        console.log('Final scores:', { ...scores });
+        console.groupEnd();
 
         // Sort: highest score first; ties won by fastest response
         const times = telState.times || {};
