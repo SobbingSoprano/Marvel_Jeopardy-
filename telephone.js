@@ -358,6 +358,9 @@ const Telephone = {
 
             const data = await res.json();
             console.log('Raw API response:', data);
+            if (data._debugRaw !== undefined) {
+                console.log('Raw Gemini text (from Vercel):', data._debugRaw);
+            }
 
             let rawArr = data.scores;
 

@@ -169,40 +169,69 @@ export default async function handler(req, res) {
             }
 
             const geminiData = await geminiRes.json();
-            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
             console.log('[Gemini Proxy] Telephone raw response:', rawText);
+            const trimmed = rawText.trim();
             let scores;
+
             try {
-                const parsed = JSON.parse(rawText.trim());
+                const parsed = JSON.parse(trimmed);
                 if (Array.isArray(parsed)) {
-                    // Gemini returned a bare array — ideal
+                    // Ideal: bare JSON array
                     scores = parsed;
                 } else if (parsed && typeof parsed === 'object') {
-                    // Gemini wrapped it in an object; find the first array value
-                    const found = Object.values(parsed).find(v => Array.isArray(v));
-                    scores = found || pairs.map(() => 0);
+                    // Case 1: { scores: [...] } or any key wrapping an array
+                    const nestedArr = Object.values(parsed).find(v => Array.isArray(v));
+                    if (nestedArr) {
+                        scores = nestedArr;
+                    } else {
+                        // Case 2: { "0": 45, "1": 38, ... } or { pair_1: 45, pair_2: 38 }
+                        const vals = Object.values(parsed);
+                        if (vals.length > 0 && vals.every(v => typeof v === 'number')) {
+                            scores = Object.keys(parsed)
+                                .sort((a, b) => {
+                                    const na = parseInt(a, 10), nb = parseInt(b, 10);
+                                    return (isNaN(na) || isNaN(nb)) ? a.localeCompare(b) : na - nb;
+                                })
+                                .map(k => parsed[k]);
+                        } else {
+                            scores = null;
+                        }
+                    }
                 } else {
-                    scores = pairs.map(() => 0);
+                    scores = null;
                 }
             } catch (_) {
-                // Fall back to regex extraction
-                const match = rawText.match(/\[[\d.,\s-]+\]/);
-                if (match) {
-                    try { scores = JSON.parse(match[0]); } catch (_2) { scores = pairs.map(() => 0); }
-                } else {
-                    scores = pairs.map(() => 0);
+                scores = null;
+            }
+
+            // Fallback 1: regex extract JSON array from surrounding text
+            if (!scores) {
+                const arrMatch = trimmed.match(/\[[\d.,\s-]+\]/);
+                if (arrMatch) {
+                    try { scores = JSON.parse(arrMatch[0]); } catch (_2) { scores = null; }
                 }
             }
 
-            // Ensure scores is a valid array of numbers
+            // Fallback 2: bare comma-separated integers with no brackets
+            if (!scores) {
+                const numMatch = trimmed.match(/^\s*(\d+(?:\s*,\s*\d+)*)\s*$/);
+                if (numMatch) {
+                    scores = numMatch[1].split(',').map(s => parseInt(s.trim(), 10));
+                }
+            }
+
+            // Last resort: zeros
             if (!Array.isArray(scores)) scores = pairs.map(() => 0);
+
+            // Normalise to clamped integers
             scores = scores.map(s => {
                 const n = Number(s);
                 return isNaN(n) ? 0 : Math.max(0, Math.min(100, Math.round(n)));
             });
 
             console.log('[Gemini Proxy] Telephone final scores:', scores);
-            return res.status(200).json({ scores });
+            return res.status(200).json({ scores, _debugRaw: rawText });
         } catch (err) {
             console.error('[Gemini Proxy] Telephone request failed:', err);
             return res.status(500).json({ error: 'Internal server error', details: err.message });
