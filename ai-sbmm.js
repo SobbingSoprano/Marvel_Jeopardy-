@@ -13,6 +13,8 @@ const AISBMM = {
     lastAnalysisTime: 0,
     analysisCooldown: 12000, // ms between Gemini calls
     originalQuestions: null,
+    logEntries: [],          // in-memory log (Ctrl+S to print)
+    logMaxEntries: 60,       // keep the last N entries
 
     // Thresholds for automatic difficulty adjustment
     thresholds: {
@@ -45,7 +47,102 @@ const AISBMM = {
 
         if (this.enabled) {
             console.log('[AI-SBMM] Initialized — Difficulty:', this.difficultyLevel);
+            this.logEvent('AI-SBMM active — Difficulty ' + ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel], 'system');
+            this._registerStatsShortcut();
         }
+    },
+
+    // Register Ctrl+S shortcut once
+    _shortcutRegistered: false,
+    _registerStatsShortcut() {
+        if (this._shortcutRegistered) return;
+        this._shortcutRegistered = true;
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                this.printStats();
+            }
+        });
+        console.log('[AI-SBMM] Press Ctrl+S at any time to print a live stats snapshot.');
+    },
+
+    // ── Ctrl+S: print full stats snapshot to console ──────────────
+    printStats() {
+        const diffLabel = ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel];
+        const players   = this.sessionMetrics.players   || {};
+        const cats      = this.sessionMetrics.categories || {};
+        const vals      = this.sessionMetrics.values     || {};
+
+        console.group('%c[AI-SBMM] ─── STATS SNAPSHOT ───────────────────────', 'color:#ffaa00;font-weight:bold');
+        console.log(`%cDifficulty: ${diffLabel} (Level ${this.difficultyLevel})`, 'color:#ffaa00');
+
+        // ── Per-player table ──────────────────────────────────────
+        const playerRows = Object.entries(players).map(([num, s]) => {
+            const acc = s.totalAnswers > 0
+                ? ((s.totalCorrect / s.totalAnswers) * 100).toFixed(1) + '%'
+                : 'N/A';
+            const avgMs = s.answerTimes?.length
+                ? (s.answerTimes.reduce((a, b) => a + b, 0) / s.answerTimes.length / 1000).toFixed(2) + 's'
+                : 'N/A';
+            return {
+                Player: `P${num}`,
+                'Skill Score': (s.skillScore >= 0 ? '+' : '') + (s.skillScore || 0).toFixed(1),
+                Correct: s.totalCorrect,
+                Wrong: s.totalWrong,
+                'Accuracy': acc,
+                'Avg Speed': avgMs,
+                'Correct Streak': s.correctStreak,
+                'Wrong Streak': s.wrongStreak,
+            };
+        });
+        if (playerRows.length) {
+            console.log('%cPlayers:', 'color:#ccc;font-style:italic');
+            console.table(playerRows);
+        } else {
+            console.log('%c  No answers recorded yet.', 'color:#888');
+        }
+
+        // ── Per-category breakdown ────────────────────────────────
+        const catRows = Object.entries(cats).map(([cat, s]) => ({
+            Category: cat,
+            Asked: s.total,
+            Correct: s.correct,
+            Accuracy: s.total ? ((s.correct / s.total) * 100).toFixed(1) + '%' : 'N/A',
+        }));
+        if (catRows.length) {
+            console.log('%cCategories:', 'color:#ccc;font-style:italic');
+            console.table(catRows);
+        }
+
+        // ── Per-value breakdown ───────────────────────────────────
+        const valRows = ['$200','$400','$600','$800','$1000'].filter(v => vals[v]).map(v => ({
+            Value: v,
+            Asked: vals[v].total,
+            Correct: vals[v].correct,
+            Accuracy: vals[v].total ? ((vals[v].correct / vals[v].total) * 100).toFixed(1) + '%' : 'N/A',
+        }));
+        if (valRows.length) {
+            console.log('%cPoint Values:', 'color:#ccc;font-style:italic');
+            console.table(valRows);
+        }
+
+        // ── Recent event feed ─────────────────────────────────────
+        if (this.logEntries.length) {
+            console.log('%cRecent Events (newest first):', 'color:#ccc;font-style:italic');
+            this.logEntries.forEach(e => {
+                const ts  = new Date(e.time).toLocaleTimeString();
+                const css = {
+                    correct:    'color:#00ff88',
+                    wrong:      'color:#ff4444',
+                    timeout:    'color:#ff6600',
+                    difficulty: 'color:#ffaa00;font-weight:bold',
+                    system:     'color:#aaa;font-style:italic',
+                }[e.type] || 'color:#fff';
+                console.log(`%c  [${ts}] ${e.message}`, css);
+            });
+        }
+
+        console.groupEnd();
     },
 
     // Toggle enabled state
@@ -53,6 +150,10 @@ const AISBMM = {
         this.enabled = !this.enabled;
         localStorage.setItem('mj_ai_sbmm_enabled', this.enabled ? '1' : '0');
         this.updateToggleButton();
+        if (this.enabled) {
+            this.logEvent('AI-SBMM enabled — Difficulty ' + ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel], 'system');
+            this._registerStatsShortcut();
+        }
         return this.enabled;
     },
 
@@ -98,6 +199,15 @@ const AISBMM = {
             playerStats.streakAnswerTimes = [];
             playerStats.totalWrong++;
         }
+
+        // Real-time log entry
+        const timeStr = answerTimeMs ? ` (${(answerTimeMs / 1000).toFixed(1)}s)` : '';
+        const deltaStr = delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1);
+        const entryType = isCorrect ? 'correct' : 'wrong';
+        this.logEvent(
+            `P${playerNum} • ${category} ${value}${timeStr} — ${isCorrect ? 'CORRECT' : 'WRONG'} [${deltaStr} pts]`,
+            entryType
+        );
         if (answerTimeMs) {
             playerStats.answerTimes.push(answerTimeMs);
         }
@@ -200,7 +310,10 @@ const AISBMM = {
         const catStats = this.getCategoryStats(category);
         catStats.total++;
 
+        // Log no-answer event
+        this.logEvent(`P${playerNum} • ${category} ${value} — NO ANSWER [${(-(base * 1.25)).toFixed(1)} pts]`, 'timeout');
         this.saveSessionMetrics();
+        this.updateScoreLog();
         this.evaluateDifficulty(playerNum);
     },
 
@@ -240,10 +353,13 @@ const AISBMM = {
     setDifficulty(level) {
         this.difficultyLevel = Math.max(1, Math.min(3, level));
         localStorage.setItem('mj_ai_sbmm_difficulty', this.difficultyLevel.toString());
+        const label = ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel];
         console.log('[AI-SBMM] Difficulty adjusted to:', this.difficultyLevel);
+        this.logEvent(`⚡ Difficulty → ${label} (Level ${this.difficultyLevel})`, 'difficulty');
         // Reset all players' streaks/scores so no second level change can fire immediately.
         // (JS is single-threaded, so this is sufficient — no pre-stamp needed.)
         this.resetAllPlayerStreaks();
+        this.updateScoreLog();
         this.applyDifficultyToQuestions();
     },
 
@@ -285,13 +401,22 @@ const AISBMM = {
         }
         this.lastAnalysisTime = now;
 
+        // Snapshot of the current board questions so Gemini can avoid duplicates
+        let currentQuestions = null;
+        if (typeof allQuestions !== 'undefined') {
+            try {
+                currentQuestions = JSON.parse(JSON.stringify(allQuestions));
+            } catch (_) { /* non-fatal */ }
+        }
+
         try {
             const response = await fetch('/api/gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     difficultyLevel: this.difficultyLevel,
-                    metricsSummary: this.getMetricsSummary()
+                    metricsSummary: this.getMetricsSummary(),
+                    existingQuestions: currentQuestions
                 })
             });
 
@@ -366,10 +491,39 @@ const AISBMM = {
             });
 
             console.log(`[AI-SBMM] Questions updated: ${replaced} replaced, ${skipped} skipped.`);
+            this.logEvent(`Gemini refreshed board: ${replaced} new clues (${skipped} skipped)`, 'system');
         } catch (err) {
             console.error('[AI-SBMM] Failed to parse Gemini response:', err);
+            this.logEvent('Gemini update failed — keeping current board', 'system');
         }
     },
+
+    // ========================================
+    // REAL-TIME SCORING LOG  (console-based)
+    // Press Ctrl+S in-game to print a full snapshot.
+    // ========================================
+
+    logEvent(message, type = 'system') {
+        // Store in memory ring-buffer
+        this.logEntries.unshift({ message, type, time: Date.now() });
+        if (this.logEntries.length > this.logMaxEntries) {
+            this.logEntries.length = this.logMaxEntries;
+        }
+
+        // Write to console with colour-coded prefix
+        const css = {
+            correct:    'color:#00cc66;font-weight:bold',
+            wrong:      'color:#ff4444;font-weight:bold',
+            timeout:    'color:#ff8800;font-weight:bold',
+            difficulty: 'color:#ffaa00;font-weight:bold',
+            system:     'color:#888;font-style:italic',
+        }[type] || 'color:#ccc';
+        console.log(`%c[AI-SBMM] ${message}`, css);
+    },
+
+    // no-op stubs so callers don't need to change
+    updateScoreLog() {},
+    injectScoreLog()  {},
 
     // ========================================
     // UI: HOMEPAGE TOGGLE
@@ -443,6 +597,8 @@ const AISBMM = {
         this.lastAnalysisTime = 0;
         this.clearSessionMetrics();
         this.originalQuestions = null;
+        this.logEntries = [];
+        this.logEvent('New game started — Difficulty reset to Normal', 'system');
         console.log('[AI-SBMM] Reset for new game — Difficulty: 1');
     }
 };

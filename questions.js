@@ -8,140 +8,140 @@
 const allQuestions = {
     "People": {
         "$200": {
-            question: "Who is the leader of the Avengers in most MCU films?",
+            question: "This star-spangled super-soldier from Brooklyn leads the Avengers in most MCU films",
             answer: ["captain america", "steve rogers"]
         },
         "$400": {
-            question: "What is the real name of Black Panther?",
-            answer: ["t'challa", "t challa", "king t'challa"]
+            question: "T'Challa is the birth name of this Wakandan king who fights as a Marvel superhero",
+            answer: ["black panther"]
         },
         "$600": {
-            question: "Which Marvel character is known as the Sorcerer Supreme?",
+            question: "Trained by the Ancient One, this former neurosurgeon now holds the title of Sorcerer Supreme",
             answer: ["doctor strange", "stephen strange"]
         },
         "$800": {
-            question: "What is the real name of the Scarlet Witch?",
+            question: "Twin sister of Pietro, this Sokovian-born mutant is the true identity behind the Scarlet Witch",
             answer: ["wanda maximoff", "wanda"]
         },
         "$1000": {
-            question: "Which mutant is known as the father of Wanda and Pietro in Marvel comics?",
+            question: "In Marvel comics, this master of magnetism raised Wanda and Pietro Maximoff as his own children",
             answer: ["magneto", "erik lehnsherr"]
         }
     },
     "Powers": {
         "$200": {
-            question: "What metal is Wolverine's skeleton coated with?",
+            question: "Weapon X forcibly bonded this virtually indestructible metal to Wolverine's entire skeleton",
             answer: ["adamantium"]
         },
         "$400": {
-            question: "Which Avenger can control lightning?",
+            question: "As the God of Thunder, this Asgardian Avenger commands lightning and wields an enchanted hammer",
             answer: ["thor"]
         },
         "$600": {
-            question: "Which cosmic force grants Captain Marvel her abilities?",
-            answer: ["the tesseract", "space stone", "energy from the tesseract"]
+            question: "Captain Marvel's extraordinary powers were unlocked by exposure to energy from this blue Infinity Stone",
+            answer: ["the tesseract", "space stone", "tesseract"]
         },
         "$800": {
-            question: "Which mutant power is Jean Grey most known for?",
+            question: "Jean Grey's most devastating ability manifests as this ancient cosmic force that nearly destroys the X-Men",
             answer: ["telekinesis", "telepathy", "phoenix force"]
         },
         "$1000": {
-            question: "What is the name of the dimension that gives Doctor Strange his magic?",
+            question: "Dormammu rules this dark realm from which Doctor Strange must never draw too much power",
             answer: ["the dark dimension", "dark dimension"]
         }
     },
     "Artifacts": {
         "$200": {
-            question: "Which magical item does Doctor Strange wear around his neck?",
+            question: "Doctor Strange wears this ancient relic — a containment vessel for the Time Stone — around his neck",
             answer: ["eye of agamotto"]
         },
         "$400": {
-            question: "Which infinity stone does Vision possess?",
+            question: "Embedded in Vision's forehead, this yellow Infinity Stone grants him consciousness and mental powers",
             answer: ["mind stone", "the mind stone"]
         },
         "$600": {
-            question: "What is Thor's hammer called?",
+            question: "Only those deemed worthy by Odin's enchantment may lift this legendary hammer of Thor",
             answer: ["mjolnir"]
         },
         "$800": {
-            question: "What metal is Captain America's shield made of?",
+            question: "Captain America's iconic round shield is forged from this ultra-rare vibration-absorbing Wakandan metal",
             answer: ["vibranium"]
         },
         "$1000": {
-            question: "What ancient book contains forbidden magical knowledge in Doctor Strange?",
+            question: "This ancient tome of chaos magic appears in both the MCU and comics as an artifact that corrupts every reader",
             answer: ["the darkhold", "darkhold"]
         }
     },
     "Media": {
         "$200": {
-            question: "Which movie introduced Spider-Man to the MCU?",
+            question: "Spider-Man first swung into the MCU as a supporting character in this airport-battle 2016 Marvel film",
             answer: ["captain america: civil war", "civil war"]
         },
         "$400": {
-            question: "Which movie features the first appearance of Thanos?",
+            question: "A post-credits scene in this 2012 Marvel ensemble film gave audiences their first look at Thanos",
             answer: ["the avengers", "avengers 1", "avengers"]
         },
         "$600": {
-            question: "Which Marvel show features Wanda creating alternate realities?",
+            question: "In this Disney+ series, Wanda Maximoff controls an entire New Jersey town inside a decades-spanning sitcom illusion",
             answer: ["wandavision"]
         },
         "$800": {
-            question: "Which film marks the introduction of the multiverse in the MCU?",
+            question: "Sam Raimi directed this 2022 MCU sequel in which Doctor Strange and America Chavez journey through alternate realities",
             answer: ["doctor strange in the multiverse of madness", "multiverse of madness"]
         },
         "$1000": {
-            question: "Which MCU movie won three Oscars, including Best Costume Design?",
+            question: "This 2018 MCU film was the first superhero movie nominated for Best Picture at the Academy Awards, winning three Oscars",
             answer: ["black panther"]
         }
     },
     "Teams": {
         "$200": {
-            question: "What superhero team is Wolverine most associated with?",
+            question: "Wolverine, Storm, Cyclops, and Jean Grey are all longtime members of this Charles Xavier-founded mutant team",
             answer: ["x-men", "x men", "xmen"]
         },
         "$400": {
-            question: "Which team includes Rocket Raccoon and Groot?",
+            question: "Star-Lord, Gamora, Drax, Rocket Raccoon, and Groot form the core roster of this ragtag intergalactic team",
             answer: ["guardians of the galaxy", "guardians"]
         },
         "$600": {
-            question: "What elite spy organization does Black Widow work for?",
+            question: "Nick Fury, Black Widow, and Hawkeye all operate within this secret government intelligence and espionage organization",
             answer: ["s.h.i.e.l.d.", "shield", "s.h.i.e.l.d"]
         },
         "$800": {
-            question: "What is the name of the villain team led by Thanos' children?",
+            question: "Corvus Glaive, Proxima Midnight, Ebony Maw, and Cull Obsidian make up this elite team of children of Thanos",
             answer: ["black order", "the black order"]
         },
         "$1000": {
-            question: "What team does Deadpool temporarily join in Deadpool 2?",
+            question: "Deadpool assembled Domino, Bedlam, Shatterstar, and others into this ill-fated mutant strike team in his 2018 sequel",
             answer: ["x-force", "x force", "xforce"]
         }
     },
     "Places": {
         "$200": {
-            question: "What country is Black Panther's home?",
+            question: "Hidden behind holographic mountains in Africa, this vibranium-rich nation is the home of Black Panther",
             answer: ["wakanda"]
         },
         "$400": {
-            question: "What city is Spider-Man primarily associated with?",
+            question: "Your friendly neighborhood Spider-Man calls this East Coast metropolis — the city that never sleeps — his home",
             answer: ["new york", "nyc", "new york city"]
         },
         "$600": {
-            question: "What is the name of Thor's home realm?",
+            question: "The Bifrost bridge connects this gleaming golden realm of Thor and Odin to the other Nine Realms",
             answer: ["asgard"]
         },
         "$800": {
-            question: "Where is Doctor Strange's Sanctum located?",
+            question: "Doctor Strange's New York Sanctum Sanctorum stands at this specific street address in Greenwich Village",
             answer: ["177a bleecker street", "bleecker street", "new york"]
         },
         "$1000": {
-            question: "What hidden mutant island appears in Marvel comics and the Krakoa era?",
+            question: "In the recent Krakoa Era of Marvel comics, mutants established their own sovereign nation on this sentient living island",
             answer: ["krakoa"]
         }
     }
 };
 
 const finalJeopardyQuestion = {
-    question: "What metal is the ONLY known substance capable of cutting through Vibranium?",
+    question: "In Marvel canon, this is the only known metal tough enough to cut through vibranium",
     answers: ["adamantium", "what is adamantium?", "adamantium metal"]
 };
 

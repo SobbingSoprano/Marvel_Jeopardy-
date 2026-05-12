@@ -18,19 +18,46 @@ const CATEGORIES = ["People", "Powers", "Artifacts", "Media", "Teams", "Places"]
 const VALUES = ["$200", "$400", "$600", "$800", "$1000"];
 const MODEL = 'gemini-3-flash-preview';
 
-function buildPrompt(difficultyLevel, metricsSummary) {
+function buildPrompt(difficultyLevel, metricsSummary, existingQuestions) {
+    // Flatten existing questions into a readable list so Gemini can avoid duplicates
+    let existingBlock = '';
+    if (existingQuestions && typeof existingQuestions === 'object') {
+        const lines = [];
+        for (const cat of Object.keys(existingQuestions)) {
+            for (const val of Object.keys(existingQuestions[cat] || {})) {
+                const q = existingQuestions[cat][val]?.question;
+                if (q) lines.push(`[${cat} ${val}] ${q}`);
+            }
+        }
+        if (lines.length) {
+            existingBlock = `
+Questions ALREADY ON THE BOARD (do NOT reuse these clues or factual premises — generate entirely new ones):
+${lines.join('\n')}
+`;
+        }
+    }
+
     return `
 You are an AI game master for a Marvel-themed Jeopardy game.
 Current difficulty level: ${difficultyLevel} (1=Normal, 2=Hard, 3=Expert)
 
 Player Performance Summary:
 ${metricsSummary}
-
+${existingBlock}
 Task: Generate a COMPLETE and VALID JSON object with updated Jeopardy questions for ALL categories and values listed below.
 
 Rules:
-- "question": A Jeopardy-style clue. Keep it concise — 12 to 20 words maximum. Same approximate length as a standard Jeopardy clue.
-- "answer": An array of 1-3 short acceptable answer strings, all lowercase, WITHOUT any Jeopardy phrasing like "What is" or "Who is". The game adds that itself.
+- "question": A proper Jeopardy-style CLUE written as a declarative statement — NOT a question.
+  The clue must describe the answer without naming it directly.
+  Good examples:
+    "This star-spangled super-soldier from Brooklyn leads the Avengers"
+    "Forged in Wakanda, only the worthy may lift this enchanted hammer"
+    "Dormammu rules this dark realm from which Doctor Strange must never draw too much power"
+  Bad examples (do NOT use these formats):
+    "Who is the leader of the Avengers?"  ← question form, forbidden
+    "What is Thor's hammer called?"        ← question form, forbidden
+- Keep every clue concise — 12 to 22 words maximum.
+- "answer": An array of 1-3 short acceptable answer strings, all lowercase, WITHOUT any Jeopardy phrasing.
   Good: ["thor", "thor odinson"]   Bad: ["What is Thor?", "Who is Thor?"]
 - Within EVERY difficulty level, question difficulty must scale with point value:
     $200 = easiest in this tier (broad knowledge, iconic characters/events)
@@ -42,6 +69,7 @@ Rules:
 - Difficulty 2 (Hard): Require more specific Marvel knowledge — supporting characters, exact titles, less famous events.
 - Difficulty 3 (Expert): Deep-cut lore — obscure aliases, storyline issue numbers, creators, less-known variants. Still keep the clue concise.
 - All questions must be factually accurate Marvel canon.
+- Do NOT reuse any clue or factual premise already listed in the "Questions ALREADY ON THE BOARD" section above.
 - Do NOT wrap the JSON in markdown code blocks. Output raw JSON only.
 
 Categories: ${CATEGORIES.join(', ')}
@@ -83,7 +111,7 @@ export default async function handler(req, res) {
         });
     }
 
-    const { difficultyLevel, metricsSummary } = req.body || {};
+    const { difficultyLevel, metricsSummary, existingQuestions } = req.body || {};
 
     if (typeof difficultyLevel !== 'number' || typeof metricsSummary !== 'string') {
         return res.status(400).json({
@@ -91,7 +119,7 @@ export default async function handler(req, res) {
         });
     }
 
-    const prompt = buildPrompt(difficultyLevel, metricsSummary);
+    const prompt = buildPrompt(difficultyLevel, metricsSummary, existingQuestions || null);
 
     try {
         const geminiRes = await fetch(
