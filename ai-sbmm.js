@@ -204,8 +204,12 @@ const AISBMM = {
         const timeStr = answerTimeMs ? ` (${(answerTimeMs / 1000).toFixed(1)}s)` : '';
         const deltaStr = delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1);
         const entryType = isCorrect ? 'correct' : 'wrong';
+        // Show progress toward next difficulty threshold
+        const currentScore = playerStats.skillScore || 0;
+        const nextThreshold = currentScore >= 0 ? this.thresholds.skillScoreUp : this.thresholds.skillScoreDown;
+        const scoreStr = `${currentScore >= 0 ? '+' : ''}${currentScore.toFixed(1)}/${nextThreshold}`;
         this.logEvent(
-            `P${playerNum} • ${category} ${value}${timeStr} — ${isCorrect ? 'CORRECT' : 'WRONG'} [${deltaStr} pts]`,
+            `P${playerNum} • ${category} ${value}${timeStr} — ${isCorrect ? 'CORRECT' : 'WRONG'} [${deltaStr} pts. ${scoreStr}]`,
             entryType
         );
         if (answerTimeMs) {
@@ -311,7 +315,10 @@ const AISBMM = {
         catStats.total++;
 
         // Log no-answer event
-        this.logEvent(`P${playerNum} • ${category} ${value} — NO ANSWER [${(-(base * 1.25)).toFixed(1)} pts]`, 'timeout');
+        const naScore = playerStats.skillScore || 0;
+        const naThreshold = naScore >= 0 ? this.thresholds.skillScoreUp : this.thresholds.skillScoreDown;
+        const naScoreStr = `${naScore >= 0 ? '+' : ''}${naScore.toFixed(1)}/${naThreshold}`;
+        this.logEvent(`P${playerNum} • ${category} ${value} — NO ANSWER [${(-(base * 1.25)).toFixed(1)} pts. ${naScoreStr}]`, 'timeout');
         this.saveSessionMetrics();
         this.updateScoreLog();
         this.evaluateDifficulty(playerNum);

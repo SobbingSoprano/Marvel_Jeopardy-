@@ -435,8 +435,23 @@ const GameState = {
         'e.g., "Who are the Guardians of the Galaxy?"',
         'e.g., "What is Wakanda?"'
     ],
-    getRandomPlaceholder() {
-        const example = this.placeholderExamples[this._placeholderIndex % this.placeholderExamples.length];
+    getRandomPlaceholder(currentAnswers) {
+        const total = this.placeholderExamples.length;
+        // If answers are supplied, skip any placeholder that contains them
+        if (Array.isArray(currentAnswers) && currentAnswers.length) {
+            const lowerAnswers = currentAnswers.map(a => a.toLowerCase());
+            for (let i = 0; i < total; i++) {
+                const candidate = this.placeholderExamples[this._placeholderIndex % total];
+                this._placeholderIndex++;
+                const lowerCandidate = candidate.toLowerCase();
+                if (!lowerAnswers.some(a => lowerCandidate.includes(a))) {
+                    return candidate;
+                }
+            }
+            // All examples somehow matched — fall back to a generic safe placeholder
+            return 'e.g., "Who is this Marvel character?"';
+        }
+        const example = this.placeholderExamples[this._placeholderIndex % total];
         this._placeholderIndex++;
         return example;
     }

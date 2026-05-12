@@ -510,7 +510,7 @@
             document.getElementById('qPlayerIndicator').textContent = 'Your turn to answer!';
             document.getElementById('qText').textContent = q.questionText;
             const answerEl = document.getElementById('answerInput');
-            answerEl.placeholder = GameState.getRandomPlaceholder();
+            answerEl.placeholder = GameState.getRandomPlaceholder(allQuestions[q.category]?.[q.value]?.answer);
             answerEl.focus();
         }
 

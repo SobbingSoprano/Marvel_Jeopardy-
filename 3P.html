@@ -461,7 +461,7 @@
             
             overlay.style.display = 'flex';
             const ddAnswerEl = document.getElementById('ddAnswer');
-            ddAnswerEl.placeholder = GameState.getRandomPlaceholder();
+            ddAnswerEl.placeholder = GameState.getRandomPlaceholder(allQuestions[category]?.[value]?.answer);
             ddAnswerEl.focus();
             
             if (typeof AISBMM !== 'undefined') AISBMM.startQuestionTimer(category, value);
@@ -508,7 +508,7 @@
             
             overlay.style.display = 'flex';
             const answerEl = document.getElementById('answerInput');
-            answerEl.placeholder = GameState.getRandomPlaceholder();
+            answerEl.placeholder = GameState.getRandomPlaceholder(allQuestions[category]?.[value]?.answer);
             answerEl.focus();
             
             if (typeof AISBMM !== 'undefined') AISBMM.startQuestionTimer(category, value);
