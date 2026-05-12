@@ -212,6 +212,20 @@
             <div class="you-indicator" id="player1You" style="display: none;">(You)</div>
         </div>
 
+        <!-- My player card: shown for 5-8P instead of the side blocks -->
+        <div class="player-block my-player-card" id="myPlayerCard" style="display:none;">
+            <div class="score-box" id="myCardScore">$0</div>
+            <div class="player-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="#111" viewBox="0 0 48 48">
+                    <circle cx="24" cy="18" r="12"/>
+                    <rect x="8" y="32" width="32" height="12" rx="6"/>
+                </svg>
+            </div>
+            <div class="player-label" id="myCardName">You</div>
+            <div class="turn-indicator" id="myCardTurn" style="display:none;">Your Turn</div>
+            <div class="you-indicator" style="display:block;">(You)</div>
+        </div>
+
         <!-- Jeopardy Grid -->
         <div class="jeopardy-grid" id="jeopardyGrid"></div>
 
@@ -320,8 +334,19 @@
             strip.innerHTML = '';
             if (count <= 2) { strip.style.display = 'none'; return; }
             strip.style.display = 'flex';
-            for (let i = 3; i <= count; i++) {
-                strip.appendChild(buildPlayerBlock(i));
+
+            if (count >= 5) {
+                // 5-8P: move both side blocks into the strip, show my card on the left
+                const p1 = document.getElementById('player1Block');
+                const p2 = document.getElementById('player2Block');
+                if (p1) strip.appendChild(p1);  // moves existing node, preserves IDs
+                if (p2) strip.appendChild(p2);
+                document.getElementById('myPlayerCard').style.display = 'flex';
+                for (let i = 3; i <= count; i++) strip.appendChild(buildPlayerBlock(i));
+            } else {
+                // 3-4P: side blocks stay, extra players go in strip
+                document.getElementById('myPlayerCard').style.display = 'none';
+                for (let i = 3; i <= count; i++) strip.appendChild(buildPlayerBlock(i));
             }
         }
 
@@ -378,6 +403,10 @@
         function onGameStateChange(newState) {
             gameState = newState;
 
+            // Clear any pending bot timeouts so stale actions don't fire
+            if (_botTurnTimeout)   { clearTimeout(_botTurnTimeout);   _botTurnTimeout   = null; }
+            if (_botSubmitTimeout) { clearTimeout(_botSubmitTimeout); _botSubmitTimeout = null; }
+
             // Redirect to final jeopardy when all cells used
             if (gameState.stage === 'final_jeopardy') {
                 PageTransitions.navigateTo('final_jeopardy_mp.html');
@@ -393,16 +422,16 @@
             isMyTurn = gameState.currentTurn === myPlayerNumber;
             updatePlayerDisplay();
 
-            // Telephone minigame takes priority until done
-            if (gameState.telephone && gameState.telephone.stage && gameState.telephone.stage !== 'done') {
-                hideAllOverlays();
+            // Telephone minigame — always call onStateUpdate so 'done' triggers _hide()
+            if (gameState.telephone && gameState.telephone.stage) {
+                if (gameState.telephone.stage !== 'done') hideAllOverlays();
                 Telephone.onStateUpdate(
                     gameState.telephone,
                     gameState,
                     myPlayerNumber,
                     MultiplayerManager.isHost
                 );
-                return;
+                if (gameState.telephone.stage !== 'done') return;
             }
 
             updateGrid();
@@ -437,6 +466,18 @@
             const guessNameEl = document.getElementById('guessPlayerName');
             if (guessNameEl) {
                 guessNameEl.textContent = gameState.playerNames?.[myPlayerNumber] || 'You';
+            }
+
+            // Update my player card (5-8P)
+            const myCard = document.getElementById('myPlayerCard');
+            if (myCard && myCard.style.display !== 'none') {
+                const myName = gameState.playerNames?.[myPlayerNumber] || `Player ${myPlayerNumber}`;
+                const myTurn = gameState.gameStarted && gameState.currentTurn === myPlayerNumber;
+                document.getElementById('myCardName').textContent = myName;
+                ScoreAnimator.setScore('myCardScore', gameState.playerScores?.[myPlayerNumber] || 0);
+                const myCardTurn = document.getElementById('myCardTurn');
+                if (myCardTurn) myCardTurn.style.display = myTurn ? 'block' : 'none';
+                myCard.classList.toggle('active-player', myTurn);
             }
         }
 
@@ -498,6 +539,11 @@
 
             if (gameState.feedback)        { showFeedback(gameState.feedback); return; }
             if (gameState.currentQuestion) { handleCurrentQuestion(); return; }
+
+            // Debug mode: auto-advance when it's a bot's turn and no question is active
+            if (isDebugMode && MultiplayerManager.isHost && !isMyTurn) {
+                _debugScheduleBotTurn();
+            }
         }
 
         // ── Number guessing (2-4P) ─────────────────────────────────────
@@ -546,6 +592,50 @@
 
         async function startGame() { await MultiplayerManager.startGame(); }
 
+        // ── Debug mode: auto-play bot turns ────────────────────────────────
+        let _botTurnTimeout   = null;
+        let _botSubmitTimeout = null;
+
+        function _debugScheduleBotTurn() {
+            if (_botTurnTimeout) return; // already scheduled
+            _botTurnTimeout = setTimeout(async () => {
+                _botTurnTimeout = null;
+                if (!isDebugMode || !MultiplayerManager.isHost || isMyTurn) return;
+                if (gameState.currentQuestion || gameState.feedback) return;
+                // Pick a random available cell
+                const usedCells = gameState.usedCells || [];
+                const available = [];
+                for (const cat of categories) {
+                    for (const val of values) {
+                        if (!usedCells.includes(`${cat}|${val}`)) available.push({ cat, val });
+                    }
+                }
+                if (!available.length) return;
+                const pick = available[Math.floor(Math.random() * available.length)];
+                const isDD = gameState.dailyDouble === `${pick.cat}|${pick.val}`;
+                await MultiplayerManager.selectCell(pick.cat, pick.val, isDD);
+            }, 1500);
+        }
+
+        function _debugAutoSubmitBotAnswer(q) {
+            if (_botSubmitTimeout) return; // already scheduled
+            _botSubmitTimeout = setTimeout(async () => {
+                _botSubmitTimeout = null;
+                if (!gameState.currentQuestion || isMyTurn) return;
+                // Handle daily double: wager minimum before submitting
+                if (q.isDailyDouble && !gameState.dailyDoubleWager) {
+                    await MultiplayerManager.submitDDWager(5);
+                    return; // state update will re-trigger _debugAutoSubmitBotAnswer
+                }
+                const points = q.isDailyDouble
+                    ? gameState.dailyDoubleWager
+                    : parseInt(q.value.replace('$', ''));
+                const formattedAnswer = getCorrectAnswerFormatted(q.category, q.value);
+                // Bot always answers wrong (loses points, keeps turns rotating)
+                await MultiplayerManager.submitAnswer('---', false, points, false, formattedAnswer);
+            }, 1800);
+        }
+
         // ── Question handling ─────────────────────────────────────────────
         function handleCurrentQuestion() {
             const q = gameState.currentQuestion;
@@ -557,6 +647,10 @@
                 }
             } else {
                 showWatchingQuestion(q);
+                // Debug mode: auto-submit a wrong answer on behalf of the bot
+                if (isDebugMode && MultiplayerManager.isHost) {
+                    _debugAutoSubmitBotAnswer(q);
+                }
             }
         }
 
@@ -710,6 +804,9 @@
             document.getElementById('watchQuestionOverlay').style.display = 'none';
             document.getElementById('questionOverlay').style.display = 'none';
             document.getElementById('feedbackOverlay').style.display = 'none';
+            // Also ensure telephone overlay is hidden whenever normal game UI shows
+            const telOverlay = document.getElementById('telephoneOverlay');
+            if (telOverlay) telOverlay.style.display = 'none';
         }
 
         function showError(message) { alert(message); }
@@ -747,10 +844,18 @@
             gap: 12px;
             padding: 12px 20px;
         }
+        /* ── My player card (5-8P) ── */
+        .my-player-card {
+            border: 2px solid rgba(255, 0, 0, 0.5);
+            background: rgba(255, 0, 0, 0.06);
+            border-radius: 10px;
+        }
+
         /* Scale down player blocks when many players */
         .player-row-bottom .player-block {
             min-width: 90px;
-            max-width: 130px;
+            max-width: 120px;
+            padding: 8px;
         }
         .player-row-bottom .player-icon svg {
             width: 48px;
