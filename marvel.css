@@ -2408,9 +2408,9 @@ body.game-page {
 .sbmm-tab-tooltip,
 .ct-tab-tooltip {
     position: absolute;
-    top: 50%;
+    top: 0;
     right: calc(100% + 14px);
-    transform: translateY(-50%) translateX(8px);
+    transform: translateX(8px);
     width: 260px;
     padding: 1em 1.2em;
     background: #111;
@@ -2496,7 +2496,7 @@ body.game-page {
 .ct-tab-wrap:focus-within .ct-tab-tooltip {
     opacity: 1;
     visibility: visible;
-    transform: translateY(-50%) translateX(0);
+    transform: translateX(0);
 }
 
 /* ============================================================
@@ -3530,4 +3530,217 @@ body.overlay-open {
         flex-shrink: 0;
     }
 }
+
+/* ================================================================
+   TELEPHONE MINIGAME
+   ================================================================ */
+
+/* Overlay card */
+.telephone-card {
+    max-width: 480px;
+    width: 92vw;
+    text-align: center;
+    padding: 36px 28px;
+}
+
+/* Big displayed word */
+.telephone-word {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(2.4rem, 8vw, 4rem);
+    letter-spacing: 0.08em;
+    color: #ff0000;
+    background: rgba(255,0,0,0.08);
+    border: 2px solid rgba(255,0,0,0.3);
+    border-radius: 10px;
+    padding: 12px 24px;
+    margin: 10px auto 16px;
+    display: inline-block;
+}
+
+/* Countdown timer with ring */
+.telephone-timer-wrap {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    margin: 8px auto 18px;
+}
+
+.timer-ring {
+    position: absolute;
+    inset: 0;
+    transform: rotate(-90deg);
+    width: 100%; height: 100%;
+}
+
+.timer-ring-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.1);
+    stroke-width: 4;
+}
+
+.timer-ring-fill {
+    fill: none;
+    stroke: #ff0000;
+    stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+}
+
+.telephone-timer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bungee', cursive;
+    font-size: 1.6rem;
+    color: #fff;
+    z-index: 1;
+}
+
+.telephone-timer.urgent {
+    color: #ff3333;
+    animation: timer-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.timer-ring-fill.urgent {
+    stroke: #ff3333;
+}
+
+@keyframes timer-pulse {
+    from { transform: scale(1); }
+    to   { transform: scale(1.15); }
+}
+
+/* Hints and heading */
+.tel-heading {
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    margin-bottom: 10px;
+}
+
+.tel-hint {
+    color: #aaa;
+    font-size: 0.9em;
+    margin-bottom: 14px;
+}
+
+.tel-waiting-msg {
+    color: #ff0000;
+    font-size: 1.05em;
+    margin-top: 8px;
+}
+
+.tel-submit-btn {
+    width: 100%;
+    margin-top: 12px;
+}
+
+/* Results list */
+.telephone-results-list {
+    margin: 14px 0 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+    max-height: 42vh;
+    overflow-y: auto;
+}
+
+.telephone-result-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 9px 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: background 0.2s;
+}
+
+.telephone-result-item.result-me {
+    background: rgba(255,0,0,0.12);
+    border-color: rgba(255,0,0,0.3);
+}
+
+.result-medal {
+    font-size: 1.4em;
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+}
+
+.result-rank-num {
+    font-family: 'Bungee', cursive;
+    font-size: 0.9em;
+    color: #888;
+}
+
+.result-detail {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.result-name {
+    font-family: 'Bungee', cursive;
+    font-size: 0.95em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-chain {
+    font-size: 0.75em;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-score-badge {
+    background: rgba(255,0,0,0.2);
+    color: #ff0000;
+    font-family: 'Bungee', cursive;
+    font-size: 0.85em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.tel-results-sub {
+    color: #aaa;
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+
+/* ================================================================
+   LOBBY — TELEPHONE NOTE + DEBUG BUTTON
+   ================================================================ */
+
+.lobby-tel-note {
+    font-size: 0.82em;
+    color: #ff9900;
+    margin: 6px 0 0;
+    line-height: 1.4;
+}
+
+.debug-tel-btn {
+    background: #1a1a1a !important;
+    border: 1px solid #444 !important;
+    color: #888 !important;
+    font-size: 0.78em !important;
+    padding: 8px 16px !important;
+    margin-top: 8px !important;
+    letter-spacing: 0.05em;
+    width: 100%;
+}
+
+.debug-tel-btn:hover {
+    background: #2a2a2a !important;
+    color: #ccc !important;
+    border-color: #ff9900 !important;
+}
+
 

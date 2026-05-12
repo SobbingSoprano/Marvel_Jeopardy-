@@ -127,7 +127,14 @@
                         <option value="2">2 Players</option>
                         <option value="3">3 Players</option>
                         <option value="4">4 Players</option>
+                        <option value="5">5 Players &#128222;</option>
+                        <option value="6">6 Players &#128222;</option>
+                        <option value="7">7 Players &#128222;</option>
+                        <option value="8">8 Players &#128222;</option>
                     </select>
+                    <p id="telephoneNote" class="lobby-tel-note" style="display:none;">
+                        &#128222; 5&ndash;8 players use the <strong>Telephone</strong> minigame to decide turn order!
+                    </p>
                 </div>
 
                 <button type="submit" class="submit-btn start-btn">
@@ -192,6 +199,11 @@
             <div id="hostControls" style="display: none;">
                 <button class="submit-btn start-btn" id="startGameBtn" disabled onclick="startMultiplayerGame()">
                     Start Game
+                </button>
+                <button class="submit-btn debug-tel-btn" id="debugTelBtn"
+                        onclick="startDebugTelephone()"
+                        title="Test the Telephone minigame as a single player">
+                    &#128295; Debug Telephone
                 </button>
             </div>
 
@@ -278,6 +290,12 @@
         }
 
         // Create room form submission
+        // Show/hide telephone note based on player count selection
+        document.getElementById('playerCount').addEventListener('change', function() {
+            const count = parseInt(this.value);
+            document.getElementById('telephoneNote').style.display = count >= 5 ? 'block' : 'none';
+        });
+
         document.getElementById('createRoomForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -335,7 +353,7 @@
                     
                     if (roomState.status === 'playing') {
                         // Game in progress, redirect to game page
-                        PageTransitions.navigateTo(`${currentPlayerCount}P_mp.html`);
+                        PageTransitions.navigateTo(getGamePage(currentPlayerCount));
                     } else if (roomState.status === 'waiting') {
                         showWaitingRoom(MultiplayerManager.roomCode, MultiplayerManager.isHost);
                     } else {
@@ -388,17 +406,37 @@
             }
         }
 
+        // Route helper: use mp_game.html for all player counts
+        function getGamePage(count) {
+            return 'mp_game.html';
+        }
+
         // Start multiplayer game
         async function startMultiplayerGame() {
             const success = await MultiplayerManager.startGame();
             if (success) {
-                PageTransitions.navigateTo(`${currentPlayerCount}P_mp.html`);
+                PageTransitions.navigateTo(getGamePage(currentPlayerCount));
             }
         }
 
         // Game started callback (for non-hosts)
         function onGameStarted() {
-            PageTransitions.navigateTo(`${currentPlayerCount}P_mp.html`);
+            PageTransitions.navigateTo(getGamePage(currentPlayerCount));
+        }
+
+        // Debug: single-player telephone test
+        async function startDebugTelephone() {
+            if (!confirm('Start a solo Telephone debug session? (Bot players will auto-fill.)')) return;
+
+            // Mark room as debug mode in Firebase
+            if (MultiplayerManager.roomRef) {
+                await MultiplayerManager.roomRef.update({ debugMode: true });
+            }
+
+            const success = await MultiplayerManager.startGame();
+            if (success) {
+                PageTransitions.navigateTo('mp_game.html');
+            }
         }
 
         // Leave room

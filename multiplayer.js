@@ -90,8 +90,11 @@ const MultiplayerManager = {
                 dailyDouble: this.generateDailyDouble(),
                 currentTurn: 1,
                 gameStarted: false,
+                // 2-4 players: number-guessing minigame
                 targetNumber: Math.floor(Math.random() * 50) + 1,
                 guesses: {},
+                // 5-8 players: telephone minigame (populated in startGame)
+                telephone: null,
                 currentQuestion: null,
                 dailyDoubleWager: null,
                 feedback: null,
@@ -349,24 +352,39 @@ const MultiplayerManager = {
         if (!this.isHost || !this.roomRef) return false;
 
         try {
-            // Check all players are connected
+            // Check all players are connected (skip check in debug mode)
+            const debugSnap = await this.roomRef.child('debugMode').once('value');
+            const isDebug = debugSnap.val() === true;
+
             const snapshot = await this.roomRef.child('players').once('value');
             const players = snapshot.val();
             const roomSnapshot = await this.roomRef.child('playerCount').once('value');
             const playerCount = roomSnapshot.val();
 
-            let connectedCount = 0;
-            for (let i = 1; i <= playerCount; i++) {
-                if (players[i] && players[i].connected) {
-                    connectedCount++;
+            if (!isDebug) {
+                let connectedCount = 0;
+                for (let i = 1; i <= playerCount; i++) {
+                    if (players[i] && players[i].connected) {
+                        connectedCount++;
+                    }
+                }
+                if (connectedCount < playerCount) {
+                    throw new Error(`Waiting for ${playerCount - connectedCount} more player(s)`);
                 }
             }
 
-            if (connectedCount < playerCount) {
-                throw new Error(`Waiting for ${playerCount - connectedCount} more player(s)`);
+            await this.roomRef.update({ status: 'playing' });
+
+            if (playerCount >= 5 || isDebug) {
+                // ── 5-8 players: telephone minigame decides first player ──
+                // Call initTelephone from the game page after navigation.
+                await this.roomRef.child('gameState').update({
+                    audioState: 'overtime'
+                });
+                return 'telephone'; // truthy – lobby navigates; game page will call initTelephone
             }
 
-            // Determine who goes first based on guesses
+            // ── 2-4 players: number-guessing minigame ────────────────────
             const guessesSnapshot = await this.roomRef.child('gameState/guesses').once('value');
             const guesses = guessesSnapshot.val() || {};
             const targetSnapshot = await this.roomRef.child('gameState/targetNumber').once('value');
@@ -385,14 +403,10 @@ const MultiplayerManager = {
                 }
             }
 
-            await this.roomRef.update({
-                status: 'playing'
-            });
-
             await this.roomRef.child('gameState').update({
                 currentTurn: firstPlayer,
                 gameStarted: true,
-                audioState: 'match' // Switch to match music when game starts
+                audioState: 'match'
             });
 
             return true;
@@ -571,6 +585,113 @@ const MultiplayerManager = {
             return false;
         }
     },
+
+    // ── TELEPHONE MINIGAME METHODS ────────────────────────────────────────
+
+    // Host: initialise the telephone round (called from game page after navigation)
+    async initTelephone(playerCount, seedWord, playerOrder) {
+        if (!this.isHost || !this.roomRef) return false;
+
+        const firstPlayer = playerOrder[0];
+
+        try {
+            await this.roomRef.child('gameState/telephone').set({
+                stage: 'asking',
+                playerOrder: playerOrder,
+                currentIndex: 0,
+                seedWord: seedWord,
+                shownWords: { [firstPlayer]: seedWord },
+                submittedWords: {},
+                times: {},
+                scores: {},
+                finalOrder: []
+            });
+            return true;
+        } catch (error) {
+            console.error('Error initialising telephone:', error);
+            return false;
+        }
+    },
+
+    // Any player: submit a word guess for the telephone round
+    async submitTelephoneWord(playerNumber, word, timeTaken) {
+        if (!this.roomRef) return false;
+
+        try {
+            await this.roomRef.child('gameState/telephone').update({
+                [`submittedWords/${playerNumber}`]: word !== null ? word : '__timeout__',
+                [`times/${playerNumber}`]: timeTaken
+            });
+            return true;
+        } catch (error) {
+            console.error('Error submitting telephone word:', error);
+            return false;
+        }
+    },
+
+    // Host: advance to next player in the chain
+    async advanceTelephone(nextIndex, nextPlayerNumber, wordToShow) {
+        if (!this.isHost || !this.roomRef) return false;
+
+        try {
+            await this.roomRef.child('gameState/telephone').update({
+                currentIndex: nextIndex,
+                [`shownWords/${nextPlayerNumber}`]: wordToShow
+            });
+            return true;
+        } catch (error) {
+            console.error('Error advancing telephone:', error);
+            return false;
+        }
+    },
+
+    // Host: set telephone stage (e.g. 'scoring')
+    async setTelephoneStage(stage) {
+        if (!this.roomRef) return false;
+        return this.roomRef.child('gameState/telephone/stage').set(stage);
+    },
+
+    // Host: store final scores + order, transition to results screen
+    async setTelephoneResults(scores, finalOrder) {
+        if (!this.isHost || !this.roomRef) return false;
+
+        try {
+            await this.roomRef.child('gameState/telephone').update({
+                scores: scores,
+                finalOrder: finalOrder,
+                stage: 'results'
+            });
+            return true;
+        } catch (error) {
+            console.error('Error setting telephone results:', error);
+            return false;
+        }
+    },
+
+    // Host: complete telephone and launch the actual Jeopardy game
+    async completeTelephone() {
+        if (!this.isHost || !this.roomRef) return false;
+
+        try {
+            const snap = await this.roomRef.child('gameState/telephone').once('value');
+            const telState = snap.val();
+            const finalOrder = telState?.finalOrder || [];
+            const firstPlayer = finalOrder[0] || 1;
+
+            await this.roomRef.child('gameState').update({
+                currentTurn: firstPlayer,
+                gameStarted: true,
+                audioState: 'match',
+                'telephone/stage': 'done'
+            });
+            return true;
+        } catch (error) {
+            console.error('Error completing telephone:', error);
+            return false;
+        }
+    },
+
+    // ── END TELEPHONE METHODS ─────────────────────────────────────────────
 
     // Leave room
     async leaveRoom() {

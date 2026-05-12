@@ -87,6 +87,28 @@ Output ONLY this JSON structure, nothing else:
 `.trim();
 }
 
+function buildTelephonePrompt(pairs) {
+    const pairList = pairs.map((p, i) =>
+        `${i + 1}. Given: "${p.given}" → Response: "${p.response || '(no response)'}"`
+    ).join('\n');
+
+    return `You are evaluating word associations for a "Telephone" word-chain party game.
+
+For each numbered pair, score how semantically related or synonymous the response word/phrase is to the given word/phrase, on a scale of 0 to 100:
+- 90-100: Near-perfect synonyms or extremely close meaning (e.g. cat → kitten, fire → blaze)
+- 70-89: Clearly related, same semantic field (e.g. ocean → wave, fast → speed)
+- 50-69: Loosely connected (e.g. tree → wood, star → bright)
+- 30-49: Vague association requiring multiple mental steps
+- 10-29: Barely related
+- 0-9: No meaningful connection, random characters, gibberish, or no response
+
+Word pairs:
+${pairList}
+
+Return ONLY a JSON array of integer scores, one per pair, in order. Example for 3 pairs: [92, 68, 5]
+Do NOT include any explanation, markdown code fences, or extra text. Output the raw JSON array only.`.trim();
+}
+
 export default async function handler(req, res) {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -111,8 +133,54 @@ export default async function handler(req, res) {
         });
     }
 
-    const { difficultyLevel, metricsSummary, existingQuestions } = req.body || {};
+    const { type, difficultyLevel, metricsSummary, existingQuestions, pairs } = req.body || {};
 
+    // ── Telephone scoring request ──────────────────────────────────────────
+    if (type === 'telephone') {
+        if (!Array.isArray(pairs) || pairs.length === 0) {
+            return res.status(400).json({ error: 'Bad request: pairs array required for telephone scoring' });
+        }
+
+        const prompt = buildTelephonePrompt(pairs);
+
+        try {
+            const geminiRes = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.2, maxOutputTokens: 256 }
+                    })
+                }
+            );
+
+            if (!geminiRes.ok) {
+                const errText = await geminiRes.text();
+                console.error('[Gemini Proxy] Telephone scoring error:', geminiRes.status, errText);
+                return res.status(502).json({ error: 'Gemini API error', status: geminiRes.status, details: errText });
+            }
+
+            const geminiData = await geminiRes.json();
+            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+            let scores;
+            try {
+                scores = JSON.parse(rawText.trim());
+            } catch (_) {
+                // Attempt to extract JSON array from any surrounding text
+                const match = rawText.match(/\[[\d,\s]+\]/);
+                scores = match ? JSON.parse(match[0]) : pairs.map(() => 0);
+            }
+
+            return res.status(200).json({ scores });
+        } catch (err) {
+            console.error('[Gemini Proxy] Telephone request failed:', err);
+            return res.status(500).json({ error: 'Internal server error', details: err.message });
+        }
+    }
+
+    // ── Standard SBMM question generation request ─────────────────────────
     if (typeof difficultyLevel !== 'number' || typeof metricsSummary !== 'string') {
         return res.status(400).json({
             error: 'Bad request: difficultyLevel (number) and metricsSummary (string) are required'

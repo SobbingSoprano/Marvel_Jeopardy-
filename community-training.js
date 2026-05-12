@@ -49,6 +49,9 @@ const CommTraining = {
 
         if (this.enabled) {
             this._tryFetchWeights();
+            console.log('%c[CommTraining] Community Training active — pooling match data for SBMM weight nudges.', 'color:#00aaff');
+        } else {
+            console.log('%c[CommTraining] Community Training inactive. Toggle on index page to opt in.', 'color:#555');
         }
     },
 
@@ -57,6 +60,9 @@ const CommTraining = {
         localStorage.setItem('mj_ct_enabled', this.enabled ? '1' : '0');
         if (this.enabled) {
             this._tryFetchWeights();
+            console.log('%c[CommTraining] Enabled — community pool will nudge SBMM weights.', 'color:#00aaff');
+        } else {
+            console.log('%c[CommTraining] Disabled.', 'color:#555');
         }
         this.updateToggleButton();
         return this.enabled;
@@ -68,6 +74,7 @@ const CommTraining = {
         if (!this.enabled) return;
         this.enabled = false;
         localStorage.setItem('mj_ct_enabled', '0');
+        console.log('%c[CommTraining] Auto-disabled (AI-SBMM turned off).', 'color:#555');
         this.updateToggleButton();
     },
 
