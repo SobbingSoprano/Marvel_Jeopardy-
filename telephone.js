@@ -14,6 +14,13 @@
 ============================================================
 */
 
+// Helper: Firebase may return stored arrays as plain objects {"0":v,"1":v,...}; normalise to a real array.
+function _toArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    return Object.keys(val).sort((a, b) => +a - +b).map(k => val[k]);
+}
+
 const Telephone = {
 
     // ── Word bank ──────────────────────────────────────────────────────────
@@ -53,14 +60,14 @@ const Telephone = {
 
         <!-- Waiting for game to initialise -->
         <div id="telWaiting" style="display:none;">
-            <h2 class="guess-title tel-heading">&#128222; Telephone!</h2>
+            <h2 class="guess-title tel-heading">Telephone!</h2>
             <p id="telWaitingMsg" class="guess-instructions tel-waiting-msg">Waiting...</p>
             <div class="preloader-spinner" style="margin:24px auto;"></div>
         </div>
 
         <!-- Active input turn -->
         <div id="telInput" style="display:none;">
-            <h2 class="guess-title tel-heading">&#128222; Your Turn!</h2>
+            <h2 class="guess-title tel-heading">Your Turn!</h2>
             <p class="guess-instructions" style="margin-bottom:6px;">The word is:</p>
             <div class="telephone-word" id="telWord">—</div>
             <p class="guess-instructions tel-hint">Give a word that means the same thing!</p>
@@ -81,14 +88,14 @@ const Telephone = {
 
         <!-- Scoring in progress (shown to all while host calls Gemini) -->
         <div id="telScoring" style="display:none;">
-            <h2 class="guess-title tel-heading">&#127775; Scoring…</h2>
+            <h2 class="guess-title tel-heading">Scoring...</h2>
             <p class="guess-instructions">Consulting the multiverse…</p>
             <div class="preloader-spinner" style="margin:24px auto;"></div>
         </div>
 
         <!-- Results -->
         <div id="telResults" style="display:none;">
-            <h2 class="guess-title tel-heading">&#127942; Results!</h2>
+            <h2 class="guess-title tel-heading">Results!</h2>
             <p class="guess-instructions tel-results-sub">Turn order has been decided.</p>
             <div id="telResultsList" class="telephone-results-list"></div>
             <div id="telHostControls" style="display:none; margin-top:20px;">
@@ -191,12 +198,12 @@ const Telephone = {
     // ── Private helpers ────────────────────────────────────────────────────
 
     _handleAsking(telState, gameState, myPlayerNumber, isHost) {
-        const playerOrder = telState.playerOrder || [];
+        const playerOrder = _toArray(telState.playerOrder);
         const currentIndex = telState.currentIndex ?? 0;
 
         // Guard: all submitted? Host should score.
         if (isHost && !this._scoringInProgress) {
-            const allDone = playerOrder.every(pn =>
+            const allDone = playerOrder.length > 0 && playerOrder.every(pn =>
                 telState.submittedWords && telState.submittedWords[pn] !== undefined
             );
             if (allDone) {
@@ -288,7 +295,7 @@ const Telephone = {
         if (this._hostTimeoutId) clearTimeout(this._hostTimeoutId);
         if (telState.submittedWords && telState.submittedWords[currentPlayerNum] !== undefined) {
             // Already submitted — advance if not last
-            const playerOrder = telState.playerOrder || [];
+            const playerOrder = _toArray(telState.playerOrder);
             if (currentIndex < playerOrder.length - 1) {
                 const nextPlayer = playerOrder[currentIndex + 1];
                 const lastWord = telState.submittedWords[currentPlayerNum];
@@ -318,7 +325,7 @@ const Telephone = {
 
         await MultiplayerManager.setTelephoneStage('scoring');
 
-        const playerOrder = telState.playerOrder || [];
+        const playerOrder = _toArray(telState.playerOrder);
         const pairs = playerOrder.map(pn => ({
             playerNumber: pn,
             given: (telState.shownWords && telState.shownWords[pn]) || telState.seedWord,
@@ -346,7 +353,7 @@ const Telephone = {
             }
 
             pairs.forEach((pair, i) => {
-                const raw = typeof rawArr[i] === 'number' ? rawArr[i] : 0;
+                const raw = rawArr[i] !== undefined ? Number(rawArr[i]) : 0;
                 scores[pair.playerNumber] = pair.response === null
                     ? 0
                     : Math.max(0, Math.min(100, Math.round(raw)));
@@ -363,15 +370,18 @@ const Telephone = {
             return (times[a] ?? 10) - (times[b] ?? 10);
         });
 
-        await MultiplayerManager.setTelephoneResults(scores, finalOrder);
-        this._scoringInProgress = false;
+        try {
+            await MultiplayerManager.setTelephoneResults(scores, finalOrder);
+        } finally {
+            this._scoringInProgress = false;
+        }
     },
 
     _showResults(telState, gameState, myPlayerNumber, isHost) {
         this._section('telResults');
         this._stopTimer();
 
-        const finalOrder = telState.finalOrder || [];
+        const finalOrder = _toArray(telState.finalOrder);
         const names = gameState.playerNames || {};
         const scores = telState.scores || {};
         const submitted = telState.submittedWords || {};
@@ -380,7 +390,7 @@ const Telephone = {
         const listEl = document.getElementById('telResultsList');
         listEl.innerHTML = '';
 
-        const medals = ['🥇', '🥈', '🥉'];
+        const RANK_LABEL = ['1st', '2nd', '3rd'];
 
         finalOrder.forEach((pn, idx) => {
             const score = scores[pn] ?? 0;
@@ -393,7 +403,9 @@ const Telephone = {
             const div = document.createElement('div');
             div.className = 'telephone-result-item' + (isMe ? ' result-me' : '');
 
-            const badge = idx < 3 ? medals[idx] : `<span class="result-rank-num">#${idx + 1}</span>`;
+            const badge = idx < 3
+                ? `<span class="result-rank-num rank-top">${RANK_LABEL[idx]}</span>`
+                : `<span class="result-rank-num">#${idx + 1}</span>`;
 
             div.innerHTML = `
                 <span class="result-medal">${badge}</span>
@@ -429,10 +441,9 @@ const Telephone = {
         div.className = 'question-overlay';
         div.style.cssText = 'display:flex; z-index:200000;';
         div.innerHTML = `
-            <div class="question-card" style="text-align:center; max-width:380px;">
-                <div style="font-size:3.5em; margin-bottom:12px;">😤</div>
-                <h2 class="guess-title" style="color:#ff0000; letter-spacing:1px;">
-                    No&hellip;&nbsp;I&nbsp;don&rsquo;t&nbsp;think&nbsp;so&hellip;
+            <div class="question-card tel-no-modal-card">
+                <h2 class="guess-title tel-no-modal-heading">
+                    No... I don&rsquo;t think so...
                 </h2>
                 <p class="guess-instructions" style="margin:16px 0;">
                     That response didn&rsquo;t quite make the cut. Better luck in the actual game!

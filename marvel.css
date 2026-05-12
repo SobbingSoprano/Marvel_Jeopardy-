@@ -3545,7 +3545,7 @@ body.overlay-open {
 
 /* Big displayed word */
 .telephone-word {
-    font-family: 'Bangers', cursive;
+    font-family: 'Bungee', cursive;
     font-size: clamp(2.4rem, 8vw, 4rem);
     letter-spacing: 0.08em;
     color: #ff0000;
@@ -3614,6 +3614,7 @@ body.overlay-open {
 
 /* Hints and heading */
 .tel-heading {
+    font-family: 'Bungee', cursive;
     font-size: clamp(1.4rem, 5vw, 2rem);
     margin-bottom: 10px;
 }
@@ -3675,6 +3676,12 @@ body.overlay-open {
     color: #888;
 }
 
+.rank-top {
+    font-family: 'Bungee', cursive;
+    font-size: 0.95em;
+    color: #ff4444;
+}
+
 .result-detail {
     display: flex;
     flex-direction: column;
@@ -3713,6 +3720,25 @@ body.overlay-open {
     color: #aaa;
     font-size: 0.9em;
     margin-bottom: 4px;
+}
+
+/* "No... I don't think so..." modal */
+.tel-no-modal-card {
+    text-align: center;
+    max-width: 380px;
+    width: 90vw;
+    padding: 32px 24px;
+}
+
+.tel-no-modal-heading {
+    font-family: 'Bungee', cursive;
+    color: #ff0000;
+    letter-spacing: 1px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    line-height: 1.35;
+    margin-bottom: 8px;
 }
 
 /* ================================================================

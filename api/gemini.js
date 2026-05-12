@@ -92,21 +92,24 @@ function buildTelephonePrompt(pairs) {
         `${i + 1}. Given: "${p.given}" → Response: "${p.response || '(no response)'}"`
     ).join('\n');
 
-    return `You are evaluating word associations for a "Telephone" word-chain party game.
+    return `You are judging a word-association party game. Players see a word and must respond with a related word. Score each pair 0–100 on how well the response connects to the given word.
 
-For each numbered pair, score how semantically related or synonymous the response word/phrase is to the given word/phrase, on a scale of 0 to 100:
-- 90-100: Near-perfect synonyms or extremely close meaning (e.g. cat → kitten, fire → blaze)
-- 70-89: Clearly related, same semantic field (e.g. ocean → wave, fast → speed)
-- 50-69: Loosely connected (e.g. tree → wood, star → bright)
-- 30-49: Vague association requiring multiple mental steps
-- 10-29: Barely related
-- 0-9: No meaningful connection, random characters, gibberish, or no response
+Scoring rubric:
+- 90–100: Direct synonyms or near-identical meaning. Examples: cat→feline, fire→blaze, fast→quick
+- 75–89: Very strong association — same category, obvious pairing. Examples: cat→dog, fire→smoke, ocean→wave, jump→leap
+- 55–74: Good association — compound words, well-known phrases, functional or thematic link. Examples: jump→rope (jump rope), fish→gold (goldfish), fire→hot, star→bright, cat→fish (cats eat fish)
+- 35–54: Moderate association — one logical step. Examples: ocean→blue, tree→wood, fish→water
+- 15–34: Weak — tangential or culturally specific link
+- 1–14: Very weak — barely connected
+- 0: No connection, gibberish, random characters, or "(no response)"
 
-Word pairs:
+IMPORTANT: Compound words and common phrases score HIGH. "jump" → "rope" scores 70+ (jump rope). "fish" → "gold" scores 65+ (goldfish). Be GENEROUS with creative but valid connections.
+
+Word pairs to score:
 ${pairList}
 
-Return ONLY a JSON array of integer scores, one per pair, in order. Example for 3 pairs: [92, 68, 5]
-Do NOT include any explanation, markdown code fences, or extra text. Output the raw JSON array only.`.trim();
+Return ONLY a JSON array of integers, one score per pair, in order. Example for 3 pairs: [85, 62, 5]
+Output ONLY the raw JSON array. No explanation, no markdown, no code fences.`.trim();
 }
 
 export default async function handler(req, res) {
@@ -151,7 +154,11 @@ export default async function handler(req, res) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { temperature: 0.2, maxOutputTokens: 256 }
+                        generationConfig: {
+                            temperature: 0.2,
+                            maxOutputTokens: 256,
+                            responseMimeType: 'application/json'
+                        }
                     })
                 }
             );
@@ -168,9 +175,13 @@ export default async function handler(req, res) {
             try {
                 scores = JSON.parse(rawText.trim());
             } catch (_) {
-                // Attempt to extract JSON array from any surrounding text
-                const match = rawText.match(/\[[\d,\s]+\]/);
-                scores = match ? JSON.parse(match[0]) : pairs.map(() => 0);
+                // Attempt to extract JSON array from any surrounding text (handles floats too)
+                const match = rawText.match(/\[[\d.,\s-]+\]/);
+                if (match) {
+                    try { scores = JSON.parse(match[0]); } catch (_2) { scores = pairs.map(() => 0); }
+                } else {
+                    scores = pairs.map(() => 0);
+                }
             }
 
             return res.status(200).json({ scores });
