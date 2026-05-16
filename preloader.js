@@ -117,19 +117,22 @@ const Preloader = {
             AudioManager.preloadAll();
         }
 
-        // Track existing audio elements
-        const audios = document.querySelectorAll('audio');
+        // Track existing audio elements — only those declared preload="auto".
+        // hover-sfx uses preload="none" and loads on first interaction, so skip it.
+        const audios = document.querySelectorAll('audio[preload="auto"]');
         audios.forEach(audio => {
-            audio.preload = 'auto';
             if (audio.readyState < 3) {
                 allPromises.push(this.loadAudio(audio));
             }
         });
 
-        // Track video loading (critical - wait for enough data to play)
+        // Only wait for the first (eagerly sourced) video.
+        // Videos 2-8 use data-lazy-src and are loaded progressively by lazyLoadVideos().
         const videos = document.querySelectorAll('video');
         videos.forEach(video => {
-            allPromises.push(this.loadVideo(video));
+            if (!video.dataset.lazySrc) {
+                allPromises.push(this.loadVideo(video));
+            }
         });
 
         // Track image loading
@@ -157,6 +160,10 @@ const Preloader = {
         } catch (e) {
             console.log('Preloader asset error:', e);
         }
+
+        // Kick off lazy video loading now (during the min-display-time window).
+        // This gives videos 2-8 extra seconds to buffer before they become visible.
+        this.lazyLoadVideos();
 
         // Ensure minimum display time so the quips can be read
         const elapsed = Date.now() - this.startTime;
@@ -318,6 +325,36 @@ const Preloader = {
             preloader.style.visibility = 'visible';
             preloader.style.pointerEvents = 'all';
         }
+    },
+
+    // Progressively load videos that carry a data-lazy-src attribute.
+    // The 120-second CSS animation cycle means each clip first becomes visible at:
+    //   Clip2 → ~16s | Clip3 → ~31s | Clip4 → ~46s
+    //   Clip5 → ~62s | Clip6 → ~76s | Clip7 → ~92s | Clip8 → ~106s
+    // We load in three batches, each well ahead of first appearance.
+    lazyLoadVideos() {
+        const lazyVideos = Array.from(document.querySelectorAll('video[data-lazy-src]'));
+        if (!lazyVideos.length) return;
+
+        const loadVideo = (video) => {
+            const src = video.dataset.lazySrc;
+            if (!src || video.src) return; // already loaded
+            video.src = src;
+            delete video.dataset.lazySrc;
+            video.load();
+        };
+
+        // Batch 1 (Clips 2-4): load ~1 second from now.
+        // Gives 15+ seconds of buffer before Clip2 first appears.
+        setTimeout(() => lazyVideos.slice(0, 3).forEach(loadVideo), 1000);
+
+        // Batch 2 (Clips 5-6): load ~35 seconds from now.
+        // Clips 5 & 6 appear at ~62s and ~76s — 35 seconds of buffer.
+        setTimeout(() => lazyVideos.slice(3, 5).forEach(loadVideo), 35000);
+
+        // Batch 3 (Clips 7-8): load ~65 seconds from now.
+        // Clips 7 & 8 appear at ~92s and ~106s — 27+ seconds of buffer.
+        setTimeout(() => lazyVideos.slice(5).forEach(loadVideo), 65000);
     },
 
     // Utility: delay

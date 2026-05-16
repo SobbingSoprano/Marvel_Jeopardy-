@@ -5,14 +5,115 @@
  Securely proxies Gemini API calls so the key stays hidden
 ============================================================
 
-ENV VARIABLE REQUIRED:
-  GEMINI_API_KEY = your Google Gemini API key
+ENV VARIABLES REQUIRED:
+  GEMINI_API_KEY  = your Google Gemini API key
 
-Set it in Vercel Dashboard:
-  Project Settings → Environment Variables → Add "GEMINI_API_KEY"
+Set them in Vercel Dashboard:
+  Project Settings → Environment Variables
+
+RATE LIMITING (per IP, sliding-window):
+  SBMM question generation : 5 req / 15 min
+  Telephone scoring         : 20 req / 15 min
+  Global (all types)        : 50 req / 15 min
+
+NOTE: Rate-limit state is in-process memory.
+  This is sufficient for low-to-moderate traffic.
+  For true multi-instance persistence, upgrade to
+  Vercel KV (Upstash Redis) and replace RateLimiter
+  with atomic KV INCR + EXPIRE calls.
 ============================================================
 */
 
+// ── Rate Limiter ─────────────────────────────────────────────────────────────
+// Sliding-window algorithm: stores an array of request timestamps per key.
+// Keys are  "<ip>:<type>"  and  "<ip>:global".
+
+const RATE_LIMITS = {
+    sbmm:      { windowMs: 15 * 60 * 1000, max: 5  }, // expensive: full board gen
+    telephone: { windowMs: 15 * 60 * 1000, max: 20 }, // cheaper:   pair scoring
+    global:    { windowMs: 15 * 60 * 1000, max: 50 }, // total cap across all types
+};
+
+class RateLimiter {
+    constructor() {
+        this._store = new Map(); // Map<key, number[]>  (arrays of ms timestamps)
+    }
+
+    /**
+     * Check and record a request.
+     * @param {string} ip   Client IP address
+     * @param {string} type Request type ("sbmm" | "telephone")
+     * @returns {{ allowed: boolean, limit: number, remaining: number, resetInMs: number }}
+     */
+    check(ip, type) {
+        const now    = Date.now();
+        const limit  = RATE_LIMITS[type] ?? RATE_LIMITS.global;
+        const typeKey   = `${ip}:${type}`;
+        const globalKey = `${ip}:global`;
+
+        // Prune and fetch windows
+        const typeTs   = this._prune(typeKey,   now, limit.windowMs);
+        const globalTs = this._prune(globalKey, now, RATE_LIMITS.global.windowMs);
+
+        const typeExceeded   = typeTs.length   >= limit.max;
+        const globalExceeded = globalTs.length >= RATE_LIMITS.global.max;
+
+        if (typeExceeded || globalExceeded) {
+            const [ts, lim] = typeExceeded
+                ? [typeTs, limit]
+                : [globalTs, RATE_LIMITS.global];
+            return {
+                allowed:    false,
+                limit:      lim.max,
+                remaining:  0,
+                resetInMs:  Math.max(0, ts[0] + lim.windowMs - now),
+            };
+        }
+
+        // Record request
+        typeTs.push(now);
+        globalTs.push(now);
+        this._store.set(typeKey,   typeTs);
+        this._store.set(globalKey, globalTs);
+
+        // Periodic memory cleanup (prevent unbounded growth under load)
+        if (this._store.size > 20_000) this._gc(now);
+
+        return {
+            allowed:   true,
+            limit:     limit.max,
+            remaining: limit.max - typeTs.length,
+            resetInMs: typeTs.length > 0
+                ? typeTs[0] + limit.windowMs - now
+                : limit.windowMs,
+        };
+    }
+
+    _prune(key, now, windowMs) {
+        const ts = (this._store.get(key) || []).filter(t => now - t < windowMs);
+        this._store.set(key, ts);
+        return ts;
+    }
+
+    _gc(now) {
+        const maxWindow = Math.max(...Object.values(RATE_LIMITS).map(l => l.windowMs));
+        for (const [key, ts] of this._store) {
+            if (ts.every(t => now - t >= maxWindow)) this._store.delete(key);
+        }
+    }
+}
+
+// Module-level singleton — survives across warm invocations of the same instance
+const rateLimiter = new RateLimiter();
+
+/** Extract the real client IP from Vercel / proxy headers */
+function getClientIP(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+    return req.socket?.remoteAddress || 'unknown';
+}
+
+// ── Game constants ────────────────────────────────────────────────────────────
 // Hardcoded game structure (mirrors questions.js)
 const CATEGORIES = ["People", "Powers", "Artifacts", "Media", "Teams", "Places"];
 const VALUES = ["$200", "$400", "$600", "$800", "$1000"];
@@ -122,6 +223,28 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed. Use POST.' });
     }
+
+    // ── Rate limiting ──────────────────────────────────────────────────────
+    // Peek at type before full body validation so we can apply per-type limits
+    const reqType   = req.body?.type === 'telephone' ? 'telephone' : 'sbmm';
+    const clientIP  = getClientIP(req);
+    const rl        = rateLimiter.check(clientIP, reqType);
+    const resetSecs = Math.ceil(rl.resetInMs / 1000);
+
+    // Always expose rate-limit info in response headers
+    res.setHeader('X-RateLimit-Limit',     rl.limit);
+    res.setHeader('X-RateLimit-Remaining', Math.max(0, rl.remaining));
+    res.setHeader('X-RateLimit-Reset',     Math.ceil((Date.now() + rl.resetInMs) / 1000)); // Unix epoch
+
+    if (!rl.allowed) {
+        res.setHeader('Retry-After', resetSecs);
+        console.warn(`[Gemini Proxy] Rate limit hit — IP: ${clientIP}, type: ${reqType}, retry in ${resetSecs}s`);
+        return res.status(429).json({
+            error:      'Too many requests. Please wait before making another AI call.',
+            retryAfter: resetSecs,
+        });
+    }
+    // ──────────────────────────────────────────────────────────────────────
 
     const apiKey = process.env.GEMINI_API_KEY;
 

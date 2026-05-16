@@ -19,27 +19,27 @@
 
     <!-- Stylesheet -->
     <link rel="stylesheet" href="marvel.css" />
-    
-    <!-- Preload Audio (high priority) -->
-    <link rel="preload" href="Assets/Sounds/krakoa-menu-theme.mp3" as="audio" type="audio/mpeg">
-    
-    <!-- Preloader Script (load early in head) -->
-    <script src="preloader.js"></script>
-    <script src="page-transitions.js"></script>
-    <script src="visual-effects.js"></script>
-    <script src="audio-manager.js"></script>
-    <script src="ai-sbmm.js"></script>
+
+    <!-- Prefetch menu theme so it's ready when the user interacts (not render-blocking) -->
+    <link rel="prefetch" href="Assets/Sounds/krakoa-menu-theme.mp3" as="audio" type="audio/mpeg">
+
+    <!-- All scripts deferred: downloaded in parallel, executed in order after HTML parse -->
+    <script src="preloader.js" defer></script>
+    <script src="page-transitions.js" defer></script>
+    <script src="visual-effects.js" defer></script>
+    <script src="audio-manager.js" defer></script>
+    <script src="ai-sbmm.js" defer></script>
 
     <!-- Firebase SDK (Community Training weight fetch) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="community-training.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js" defer></script>
+    <script src="firebase-config.js" defer></script>
+    <script src="community-training.js" defer></script>
 </head>
 
 <body>
-    <!-- CSS Preloader -->
-    <div class="preloader preloader-homepage">
+    <!-- CSS Preloader — visible via inline style before JS runs (scripts are deferred) -->
+    <div class="preloader preloader-homepage" style="opacity:1;visibility:visible;pointer-events:all;">
         <div class="preloader-logo">
             <span class="preloader-marvel">MARVEL</span>
             <span class="preloader-jeopardy">Jeopardy!</span>
@@ -50,39 +50,34 @@
     </div>
 
     <!-- Audio Placeholders -->
+    <!-- preloader-sfx: auto — plays during preloader, needs to be ready immediately -->
     <audio id="preloader-sfx" preload="auto">
         <source src="Assets/Sounds/preloader-ambient.mp3" type="audio/mpeg">
     </audio>
-    <audio id="hover-sfx" preload="auto">
+    <!-- hover-sfx: none — only needed on first hover, load on demand -->
+    <audio id="hover-sfx" preload="none">
         <source src="Assets/Sounds/hover-click.mp3" type="audio/mpeg">
     </audio>
 
     <!-- Video Background -->
+    <!--
+        Performance: Only Clip1 has an eager <source>. Clips 2-8 use data-lazy-src
+        and are loaded progressively by preloader.js after initial paint:
+          Clip2-4 load ~1s after page is ready (they first appear at ~16s / ~31s / ~46s)
+          Clip5-6 load ~35s after page is ready (they first appear at ~62s / ~76s)
+          Clip7-8 load ~65s after page is ready (they first appear at ~92s / ~106s)
+    -->
     <div class="video-background">
         <video autoplay muted loop playsinline>
             <source src="Assets/Videos/Clip1.mp4" type="video/mp4" />
         </video>
-        <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip2.mp4" type="video/mp4" />
-        </video>
-        <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip3.mp4" type="video/mp4" />
-        </video>
-        <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip4.mp4" type="video/mp4" />
-        </video>
-        <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip5.mp4" type="video/mp4" />
-        </video>
-        <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip6.mp4" type="video/mp4" />
-        </video>
-        <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip7.mp4" type="video/mp4" />
-        </video>
-        <video autoplay muted loop playsinline>
-            <source src="Assets/Videos/Clip8.mp4" type="video/mp4" />
-        </video>
+        <video autoplay muted loop playsinline data-lazy-src="Assets/Videos/Clip2.mp4"></video>
+        <video autoplay muted loop playsinline data-lazy-src="Assets/Videos/Clip3.mp4"></video>
+        <video autoplay muted loop playsinline data-lazy-src="Assets/Videos/Clip4.mp4"></video>
+        <video autoplay muted loop playsinline data-lazy-src="Assets/Videos/Clip5.mp4"></video>
+        <video autoplay muted loop playsinline data-lazy-src="Assets/Videos/Clip6.mp4"></video>
+        <video autoplay muted loop playsinline data-lazy-src="Assets/Videos/Clip7.mp4"></video>
+        <video autoplay muted loop playsinline data-lazy-src="Assets/Videos/Clip8.mp4"></video>
     </div>
 
     <!-- AI-SBMM & Community Training — side-peek card tabs -->
@@ -252,6 +247,15 @@
         // Initialize CT button active state
         if (CommTraining.enabled) {
             document.getElementById('ctBtn').classList.add('active');
+        }
+    </script>
+
+    <!-- Service Worker registration (fires on 'load' so it never blocks the page) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function() {});
+            });
         }
     </script>
 </body>

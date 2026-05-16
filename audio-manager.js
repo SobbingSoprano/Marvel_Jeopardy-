@@ -18,16 +18,19 @@ const AudioManager = {
         'overtime': 'Assets/Sounds/krakoa-overtime.mp3'
     },
     
-    // Preload all audio tracks immediately
+    // Preload all audio tracks — deferred by 6 seconds so it doesn't compete
+    // with the critical path (video 1, CSS, fonts) on initial page load.
     preloadAll() {
-        Object.entries(this.tracks).forEach(([name, url]) => {
-            const audio = new Audio();
-            audio.preload = 'auto';
-            audio.src = url;
-            // Start loading immediately
-            audio.load();
-            this.preloadedAudio[name] = audio;
-        });
+        setTimeout(() => {
+            Object.entries(this.tracks).forEach(([name, url]) => {
+                const audio = new Audio();
+                audio.preload = 'auto';
+                audio.src = url;
+                // Start loading immediately within the deferred window
+                audio.load();
+                this.preloadedAudio[name] = audio;
+            });
+        }, 6000);
     },
     
     // Initialize audio system
