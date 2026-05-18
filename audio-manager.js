@@ -326,7 +326,7 @@ const SoundEffects = {
                 this.play('unhover');
             });
         });
-    }
+    },
 
     setupTabHoverSounds() {
         const sbmmBtn = document.getElementById('aiSbmmBtn');
