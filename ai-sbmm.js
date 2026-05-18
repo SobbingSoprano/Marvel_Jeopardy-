@@ -83,7 +83,7 @@ const AISBMM = {
                     warning.className = 'tooltip-warning';
                     tooltip.appendChild(warning);
                 }
-                warning.textContent = '⚠️ Gemini API is currently unavailable. AI-SBMM cannot be enabled.';
+                warning.textContent = '⚠️ AI-SBMM cannot be enabled at this time. Please check back later!';
             }
             if (btn) {
                 btn.classList.add('gemini-unavailable');
