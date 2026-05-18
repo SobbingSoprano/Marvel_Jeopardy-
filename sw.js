@@ -15,7 +15,7 @@
 ============================================================
 */
 
-const CACHE_VERSION  = 'v1';
+const CACHE_VERSION  = 'v2';
 const CACHE_STATIC   = `marvel-static-${CACHE_VERSION}`;
 const CACHE_RUNTIME  = `marvel-runtime-${CACHE_VERSION}`;
 
@@ -33,8 +33,10 @@ const PRECACHE_URLS = [
     '/community-training.js',
     '/questions.js',
     '/security.js',
-    '/Assets/Sounds/hover-click.mp3',
-    '/Assets/Sounds/preloader-ambient.mp3',
+    '/Assets/Sounds/click.wav',
+    '/Assets/Sounds/ai-sbmm hover.wav',
+    '/Assets/Sounds/community-train. hover.wav',
+    '/Assets/Sounds/telephone.wav',
 ];
 
 // ── Install: pre-cache all critical static assets ────────────────────────────
