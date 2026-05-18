@@ -17,6 +17,15 @@
         rel="stylesheet"
     />
 
+    <!-- FOUC prevention: hide CT tab until JS initialises state -->
+    <style>
+        #ct-toggle:not(.ct-visible) {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+    </style>
+
     <!-- Stylesheet -->
     <link rel="stylesheet" href="marvel.css" />
 
@@ -225,29 +234,42 @@
             });
         }
 
-        // AI-SBMM toggle button
-        document.getElementById('aiSbmmBtn').addEventListener('click', function() {
-            HoverSound.play();
-            const nowEnabled = AISBMM.toggle();
-            this.classList.toggle('active', nowEnabled);
+        document.addEventListener('DOMContentLoaded', function() {
+            const aiBtn = document.getElementById('aiSbmmBtn');
+            const ctBtn = document.getElementById('ctBtn');
+
+            // AI-SBMM toggle button
+            if (aiBtn) {
+                aiBtn.addEventListener('click', function() {
+                    HoverSound.play();
+                    const nowEnabled = AISBMM.toggle();
+                    this.classList.toggle('active', nowEnabled);
+                });
+            }
+
+            // Community Training toggle button
+            if (ctBtn) {
+                ctBtn.addEventListener('click', function() {
+                    HoverSound.play();
+                    const nowEnabled = CommTraining.toggle();
+                    this.classList.toggle('active', nowEnabled);
+                });
+            }
+
+            // Blur buttons on mouseleave so tabs retract after interaction
+            const sbmmWrap = document.getElementById('sbmm-tab-wrap');
+            const ctWrap = document.getElementById('ct-toggle');
+            if (sbmmWrap && aiBtn) {
+                sbmmWrap.addEventListener('mouseleave', function() {
+                    if (document.activeElement === aiBtn) aiBtn.blur();
+                });
+            }
+            if (ctWrap && ctBtn) {
+                ctWrap.addEventListener('mouseleave', function() {
+                    if (document.activeElement === ctBtn) ctBtn.blur();
+                });
+            }
         });
-
-        // Initialize AI-SBMM button state
-        if (AISBMM.isEnabled()) {
-            document.getElementById('aiSbmmBtn').classList.add('active');
-        }
-
-        // Community Training toggle button
-        document.getElementById('ctBtn').addEventListener('click', function() {
-            HoverSound.play();
-            const nowEnabled = CommTraining.toggle();
-            this.classList.toggle('active', nowEnabled);
-        });
-
-        // Initialize CT button active state
-        if (CommTraining.enabled) {
-            document.getElementById('ctBtn').classList.add('active');
-        }
     </script>
 
     <!-- Service Worker registration (fires on 'load' so it never blocks the page) -->

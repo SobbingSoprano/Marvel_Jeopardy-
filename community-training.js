@@ -46,6 +46,7 @@ const CommTraining = {
         // defined before this runs. Both are deferred to DOMContentLoaded so
         // we can safely read AISBMM.enabled and query the DOM here.
         this._syncVisibility();
+        this.updateToggleButton();
 
         if (this.enabled) {
             this._tryFetchWeights();

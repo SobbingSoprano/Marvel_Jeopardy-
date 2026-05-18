@@ -44,6 +44,7 @@ const Telephone = {
     _isHost: false,
     _injected: false,
     _myTurnActive: false,
+    sfxVolume: 0.5,
 
     // ── Public API ─────────────────────────────────────────────────────────
 
@@ -248,6 +249,12 @@ const Telephone = {
 
         this._stopTimer();
         this._section('telInput');
+
+        // Play local turn notification sound
+        if (typeof SoundEffects !== 'undefined') {
+            SoundEffects.play('telephone', this.sfxVolume);
+        }
+
         document.getElementById('telWord').textContent = wordShown.toUpperCase();
         const answerEl = document.getElementById('telAnswer');
         answerEl.value = '';

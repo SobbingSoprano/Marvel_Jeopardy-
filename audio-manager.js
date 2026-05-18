@@ -260,9 +260,13 @@ const SoundEffects = {
         this.preload('hover-3p', 'Assets/Sounds/3p hover.wav');
         this.preload('hover-4p', 'Assets/Sounds/4p hover.wav');
         this.preload('hover-online', 'Assets/Sounds/Online hover.wav');
+        this.preload('ai-sbmm-hover', 'Assets/Sounds/ai-sbmm hover.wav');
+        this.preload('ct-hover', 'Assets/Sounds/community-train. hover.wav');
+        this.preload('telephone', 'Assets/Sounds/telephone.wav');
 
         this.setupClickSound();
         this.setupCardHoverSounds();
+        this.setupTabHoverSounds();
     },
 
     preload(name, url) {
@@ -273,14 +277,14 @@ const SoundEffects = {
         this.sounds[name] = audio;
     },
 
-    play(name) {
+    play(name, volume = 0.5) {
         if (!this.enabled) return;
         const audio = this.sounds[name];
         if (!audio) return;
 
         // Clone to allow overlapping playback and avoid cutting off
         const clone = audio.cloneNode();
-        clone.volume = 0.5;
+        clone.volume = Math.max(0, Math.min(1, volume));
         const promise = clone.play();
         if (promise !== undefined) {
             promise.catch(() => {});
@@ -322,6 +326,39 @@ const SoundEffects = {
                 this.play('unhover');
             });
         });
+    }
+
+    setupTabHoverSounds() {
+        const sbmmBtn = document.getElementById('aiSbmmBtn');
+        const ctBtn = document.getElementById('ctBtn');
+        const lastHoverTime = new Map();
+        const DEBOUNCE_MS = 200;
+
+        if (sbmmBtn) {
+            sbmmBtn.dataset.hoverSoundAttached = 'true';
+            sbmmBtn.addEventListener('mouseenter', () => {
+                const wrap = sbmmBtn.closest('.sbmm-tab-wrap');
+                if (wrap && getComputedStyle(wrap).pointerEvents === 'none') return;
+                const now = Date.now();
+                const last = lastHoverTime.get(sbmmBtn) || 0;
+                if (now - last < DEBOUNCE_MS) return;
+                lastHoverTime.set(sbmmBtn, now);
+                this.play('ai-sbmm-hover', 0.5);
+            });
+        }
+
+        if (ctBtn) {
+            ctBtn.dataset.hoverSoundAttached = 'true';
+            ctBtn.addEventListener('mouseenter', () => {
+                const wrap = ctBtn.closest('.ct-tab-wrap');
+                if (!wrap || !wrap.classList.contains('ct-visible')) return;
+                const now = Date.now();
+                const last = lastHoverTime.get(ctBtn) || 0;
+                if (now - last < DEBOUNCE_MS) return;
+                lastHoverTime.set(ctBtn, now);
+                this.play('ct-hover', 0.5);
+            });
+        }
     }
 };
 

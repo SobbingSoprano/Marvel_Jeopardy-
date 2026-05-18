@@ -50,6 +50,7 @@ const AISBMM = {
             this.logEvent('AI-SBMM active — Difficulty ' + ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel], 'system');
             this._registerStatsShortcut();
         }
+        this.updateToggleButton();
     },
 
     // Register Ctrl+S shortcut once
