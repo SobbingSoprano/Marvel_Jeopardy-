@@ -258,6 +258,15 @@ export default async function handler(req, res) {
 
     const { type, difficultyLevel, metricsSummary, existingQuestions, pairs } = req.body || {};
 
+    // ── Health check ───────────────────────────────────────────────────────
+    if (type === 'health') {
+        return res.status(200).json({
+            status: 'ok',
+            model: MODEL,
+            ready: !!apiKey
+        });
+    }
+
     // ── Telephone scoring request ──────────────────────────────────────────
     if (type === 'telephone') {
         if (!Array.isArray(pairs) || pairs.length === 0) {

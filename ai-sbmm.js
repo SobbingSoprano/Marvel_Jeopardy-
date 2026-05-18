@@ -8,6 +8,7 @@
 
 const AISBMM = {
     enabled: false,
+    geminiAvailable: true,
     sessionMetrics: {},
     difficultyLevel: 1, // 1 = Normal, 2 = Hard, 3 = Expert
     lastAnalysisTime: 0,
@@ -51,6 +52,56 @@ const AISBMM = {
             this._registerStatsShortcut();
         }
         this.updateToggleButton();
+        this.checkGeminiHealth();
+    },
+
+    // ── Gemini health check ────────────────────────────────────────────────
+    async checkGeminiHealth() {
+        try {
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'health' })
+            });
+            if (!response.ok) throw new Error('Health check failed');
+            const data = await response.json();
+            this.geminiAvailable = data.ready !== false;
+        } catch (err) {
+            this.geminiAvailable = false;
+        }
+        this.updateGeminiStatusUI();
+    },
+
+    updateGeminiStatusUI() {
+        const tooltip = document.getElementById('aiSbmmTabTooltip');
+        const btn = document.getElementById('aiSbmmBtn');
+        if (!this.geminiAvailable) {
+            if (tooltip) {
+                let warning = tooltip.querySelector('.tooltip-warning');
+                if (!warning) {
+                    warning = document.createElement('span');
+                    warning.className = 'tooltip-warning';
+                    tooltip.appendChild(warning);
+                }
+                warning.textContent = '⚠️ Gemini API is currently unavailable. AI-SBMM cannot be enabled.';
+            }
+            if (btn) {
+                btn.classList.add('gemini-unavailable');
+                // If currently enabled, auto-disable since Gemini is down
+                if (this.enabled) {
+                    this.enabled = false;
+                    localStorage.setItem('mj_ai_sbmm_enabled', '0');
+                    this.updateToggleButton();
+                    if (typeof CommTraining !== 'undefined') CommTraining.setSbmmActive(false);
+                }
+            }
+        } else {
+            if (tooltip) {
+                const warning = tooltip.querySelector('.tooltip-warning');
+                if (warning) warning.remove();
+            }
+            if (btn) btn.classList.remove('gemini-unavailable');
+        }
     },
 
     // Register Ctrl+S shortcut once
@@ -148,6 +199,10 @@ const AISBMM = {
 
     // Toggle enabled state
     toggle() {
+        if (!this.geminiAvailable) {
+            console.warn('[AI-SBMM] Cannot toggle: Gemini API is unavailable');
+            return this.enabled;
+        }
         this.enabled = !this.enabled;
         localStorage.setItem('mj_ai_sbmm_enabled', this.enabled ? '1' : '0');
         this.updateToggleButton();

@@ -114,7 +114,7 @@ async function cacheFirst(request, cacheName) {
     if (cached) return cached;
 
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && response.status !== 206) {
         const cache = await caches.open(cacheName);
         cache.put(request, response.clone());
     }
@@ -130,7 +130,7 @@ async function staleWhileRevalidate(request, cacheName) {
     const cached = await cache.match(request);
 
     const networkFetch = fetch(request).then(response => {
-        if (response.ok) cache.put(request, response.clone());
+        if (response.ok && response.status !== 206) cache.put(request, response.clone());
         return response;
     }).catch(() => cached); // fall back to stale if offline
 
@@ -144,7 +144,7 @@ async function staleWhileRevalidate(request, cacheName) {
 async function networkFirst(request, cacheName) {
     try {
         const response = await fetch(request);
-        if (response.ok) {
+        if (response.ok && response.status !== 206) {
             const cache = await caches.open(cacheName);
             cache.put(request, response.clone());
         }

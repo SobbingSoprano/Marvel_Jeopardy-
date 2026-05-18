@@ -2483,6 +2483,23 @@ body.game-page {
     letter-spacing: 0.5px;
 }
 
+.sbmm-tab-tooltip .tooltip-warning {
+    display: block;
+    margin-top: 0.6em;
+    font-family: 'Bungee', cursive;
+    font-size: 0.75em;
+    color: #ff4444;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sbmm-tab-card.gemini-unavailable {
+    border-color: #ff4444 !important;
+    color: #ff4444 !important;
+    box-shadow: -4px 4px 0px rgba(255, 68, 68, 0.3) !important;
+    cursor: not-allowed;
+}
+
 /* Show tooltip when the tab wrapper is hovered / focused */
 .sbmm-tab-wrap:hover .sbmm-tab-tooltip,
 .sbmm-tab-wrap:focus-within .sbmm-tab-tooltip,
