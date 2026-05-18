@@ -252,6 +252,7 @@ const AudioManager = {
 const SoundEffects = {
     sounds: {},
     enabled: true,
+    audioContext: null,
 
     init() {
         this.preload('click', 'Assets/Sounds/click.wav');
@@ -277,7 +278,7 @@ const SoundEffects = {
         this.sounds[name] = audio;
     },
 
-    play(name, volume = 0.5) {
+    play(name, volume = 0.5, pan = null) {
         if (!this.enabled) return;
         const audio = this.sounds[name];
         if (!audio) return;
@@ -285,6 +286,30 @@ const SoundEffects = {
         // Clone to allow overlapping playback and avoid cutting off
         const clone = audio.cloneNode();
         clone.volume = Math.max(0, Math.min(1, volume));
+
+        // Pan audio via Web Audio API (-1 = full left, 1 = full right)
+        if (typeof pan === 'number') {
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) throw new Error('Web Audio not supported');
+
+                if (!this.audioContext) {
+                    this.audioContext = new AC();
+                }
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().catch(() => {});
+                }
+
+                const source = this.audioContext.createMediaElementSource(clone);
+                const panner = this.audioContext.createStereoPanner();
+                panner.pan.value = Math.max(-1, Math.min(1, pan));
+                source.connect(panner);
+                panner.connect(this.audioContext.destination);
+            } catch (e) {
+                // Fallback to normal playback if Web Audio API fails
+            }
+        }
+
         const promise = clone.play();
         if (promise !== undefined) {
             promise.catch(() => {});
@@ -356,7 +381,7 @@ const SoundEffects = {
                 const last = lastHoverTime.get(ctBtn) || 0;
                 if (now - last < DEBOUNCE_MS) return;
                 lastHoverTime.set(ctBtn, now);
-                this.play('ct-hover', 0.5);
+                this.play('ct-hover', 0.5, 1); // 1 = full right ear
             });
         }
     }
