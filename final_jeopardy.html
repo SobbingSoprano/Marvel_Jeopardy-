@@ -157,8 +157,10 @@
         const container = document.getElementById('wagerFields');
         container.innerHTML = '';
 
+        // Party-game rule: everyone can wager up to the highest score in the game
+        const maxWager = Math.max(...Object.values(playerScores), 0);
+
         for (let i = 1; i <= playerCount; i++) {
-            const maxWager = Math.max(Math.abs(playerScores[i]), 0);
             const div = document.createElement('div');
             div.innerHTML = `
                 <label class="question-label">
@@ -186,12 +188,31 @@
 
         for (let i = 1; i <= playerCount; i++) {
             const div = document.createElement('div');
+            div.style.marginBottom = '12px';
             div.innerHTML = `
                 <label class="question-label">${escapeHtml(playerNames[i])}'s Answer:</label>
-                <input type="text" id="answer_${i}" class="question-input" placeholder="e.g., What is Adamantium?" required>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="password" id="answer_${i}" class="question-input" placeholder="e.g., What is Adamantium?" required style="flex:1;">
+                    <button type="button" class="toggle-answer-btn" data-target="answer_${i}" style="padding:6px 10px;font-size:12px;cursor:pointer;background:#333;color:#fff;border:1px solid #555;border-radius:4px;white-space:nowrap;">👁 Show</button>
+                </div>
             `;
             container.appendChild(div);
         }
+
+        // Attach show/hide toggles so players can verify their own answer
+        // without exposing it to opponents on the shared screen
+        container.querySelectorAll('.toggle-answer-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const input = document.getElementById(this.dataset.target);
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.textContent = '🙈 Hide';
+                } else {
+                    input.type = 'password';
+                    this.textContent = '👁 Show';
+                }
+            });
+        });
 
         document.getElementById('questionScreen').style.display = 'flex';
     }
@@ -247,8 +268,8 @@
         e.preventDefault();
 
         const wagers = {};
+        const maxWager = Math.max(...Object.values(playerScores), 0);
         for (let i = 1; i <= playerCount; i++) {
-            const maxWager = Math.max(Math.abs(playerScores[i]), 0);
             const wagerInput = document.getElementById(`wager_${i}`);
             const validation = Security.validateWager(wagerInput.value, 0, maxWager, playerScores[i]);
             wagers[i] = validation.value;

@@ -203,7 +203,8 @@
             
             const myWager = gameState.finalWagers?.[myPlayerNumber];
             const myScore = gameState.playerScores[myPlayerNumber] || 0;
-            const maxWager = Math.max(Math.abs(myScore), 0);
+            // Party-game rule: everyone can wager up to the highest score in the game
+            const maxWager = Math.max(...Object.values(gameState.playerScores || {}), 0);
             
             document.getElementById('wagerPlayerInfo').textContent = 
                 `${gameState.playerNames[myPlayerNumber]}, enter your wager:`;
@@ -294,8 +295,8 @@
         document.getElementById('wagerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const wagerInput = document.getElementById('wagerInput');
+            const maxWager = Math.max(...Object.values(gameState.playerScores || {}), 0);
             const myScore = gameState.playerScores[myPlayerNumber] || 0;
-            const maxWager = Math.max(Math.abs(myScore), 0);
             const validation = Security.validateWager(wagerInput.value, 0, maxWager, myScore);
             
             await MultiplayerManager.submitFinalWager(myPlayerNumber, validation.value);
