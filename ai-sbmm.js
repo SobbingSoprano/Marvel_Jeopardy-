@@ -14,6 +14,7 @@ const AISBMM = {
     lastAnalysisTime: 0,
     analysisCooldown: 12000, // ms between Gemini calls
     originalQuestions: null,
+    generatedQuestions: { 2: null, 3: null }, // Cached Hard/Expert sets per level
     logEntries: [],          // in-memory log (Ctrl+S to print)
     logMaxEntries: 60,       // keep the last N entries
 
@@ -460,11 +461,7 @@ const AISBMM = {
         if (!this.enabled || !this.originalQuestions) return;
 
         // Level 1 = Original questions (no change)
-        // Level 2 = Swap in harder variants if available
-        // Level 3 = Swap in expert variants + reduce hint tolerance
-
         if (this.difficultyLevel === 1) {
-            // Restore originals
             Object.keys(this.originalQuestions).forEach(cat => {
                 Object.keys(this.originalQuestions[cat]).forEach(val => {
                     allQuestions[cat][val] = JSON.parse(JSON.stringify(this.originalQuestions[cat][val]));
@@ -473,10 +470,56 @@ const AISBMM = {
             return;
         }
 
-        // For levels 2+, integrate with Gemini here
-        // to fetch dynamically generated harder questions.
-        // The placeholder below shows the hook structure.
+        // Level 2/3: use cached generated questions if we already fetched them
+        const cached = this.generatedQuestions[this.difficultyLevel];
+        if (cached) {
+            this._applyQuestionSet(cached, true);
+            return;
+        }
+
+        // First time at this difficulty — fetch from Gemini
         this.requestGeminiQuestionUpdate();
+    },
+
+    // Shared validation + merge logic used by both Gemini responses and cache restores
+    _applyQuestionSet(questions, fromCache = false) {
+        let replaced = 0;
+        let skipped = 0;
+
+        Object.keys(questions).forEach(cat => {
+            if (!allQuestions[cat]) return;
+            Object.keys(questions[cat]).forEach(val => {
+                if (!allQuestions[cat][val]) return;
+                const entry = questions[cat][val];
+
+                if (
+                    typeof entry.question !== 'string' || !entry.question.trim() ||
+                    !Array.isArray(entry.answer) || entry.answer.length === 0 ||
+                    !entry.answer.every(a => typeof a === 'string' && a.trim())
+                ) {
+                    console.warn(`[AI-SBMM] Skipping malformed entry for ${cat} ${val}:`, entry);
+                    skipped++;
+                    return;
+                }
+
+                allQuestions[cat][val] = {
+                    question: entry.question.trim(),
+                    answer: entry.answer.map(a => a.toLowerCase().trim())
+                };
+                replaced++;
+            });
+        });
+
+        const label = ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel];
+        if (fromCache) {
+            console.log(`[AI-SBMM] Restored cached ${label} questions: ${replaced} replaced, ${skipped} skipped.`);
+            this.logEvent(`Restored cached ${label} questions (${replaced} clues)`, 'system');
+        } else {
+            console.log(`[AI-SBMM] Questions updated: ${replaced} replaced, ${skipped} skipped.`);
+            this.logEvent(`Gemini refreshed board: ${replaced} new clues (${skipped} skipped)`, 'system');
+        }
+
+        return { replaced, skipped };
     },
 
     // ========================================
@@ -489,6 +532,10 @@ const AISBMM = {
             return; // Rate limited
         }
         this.lastAnalysisTime = now;
+
+        // Capture the level we are generating for so a mid-flight difficulty
+        // change doesn't accidentally cache questions under the wrong tier.
+        const requestedLevel = this.difficultyLevel;
 
         // Snapshot of the current board questions so Gemini can avoid duplicates
         let currentQuestions = null;
@@ -524,7 +571,7 @@ const AISBMM = {
 
             const data = await response.json();
             const text = data.text || '';
-            this.applyGeminiResponse(text);
+            this.applyGeminiResponse(text, requestedLevel);
         } catch (err) {
             console.error('[AI-SBMM] Gemini request failed:', err);
         }
@@ -542,45 +589,20 @@ const AISBMM = {
         return lines.join('\n') || 'No data yet.';
     },
 
-    applyGeminiResponse(text) {
+    applyGeminiResponse(text, requestedLevel = this.difficultyLevel) {
         try {
             // Extract JSON from response (handle markdown code blocks)
             const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) || text.match(/```\s*([\s\S]*?)```/) || [null, text];
             const jsonStr = jsonMatch[1].trim();
             const newQuestions = JSON.parse(jsonStr);
 
-            let replaced = 0;
-            let skipped = 0;
+            const result = this._applyQuestionSet(newQuestions);
 
-            // Merge new questions into allQuestions
-            Object.keys(newQuestions).forEach(cat => {
-                if (!allQuestions[cat]) return;
-                Object.keys(newQuestions[cat]).forEach(val => {
-                    if (!allQuestions[cat][val]) return;
-                    const entry = newQuestions[cat][val];
-
-                    // Validate structure: question must be a non-empty string,
-                    // answer must be a non-empty array of strings
-                    if (
-                        typeof entry.question !== 'string' || !entry.question.trim() ||
-                        !Array.isArray(entry.answer) || entry.answer.length === 0 ||
-                        !entry.answer.every(a => typeof a === 'string' && a.trim())
-                    ) {
-                        console.warn(`[AI-SBMM] Skipping malformed entry for ${cat} ${val}:`, entry);
-                        skipped++;
-                        return;
-                    }
-
-                    allQuestions[cat][val] = {
-                        question: entry.question.trim(),
-                        answer: entry.answer.map(a => a.toLowerCase().trim())
-                    };
-                    replaced++;
-                });
-            });
-
-            console.log(`[AI-SBMM] Questions updated: ${replaced} replaced, ${skipped} skipped.`);
-            this.logEvent(`Gemini refreshed board: ${replaced} new clues (${skipped} skipped)`, 'system');
+            // Cache the generated questions so we don't hit Gemini again
+            // when the player oscillates between difficulty levels.
+            if (result && result.replaced > 0) {
+                this.generatedQuestions[requestedLevel] = JSON.parse(JSON.stringify(newQuestions));
+            }
         } catch (err) {
             console.error('[AI-SBMM] Failed to parse Gemini response:', err);
             this.logEvent('Gemini update failed — keeping current board', 'system');
@@ -687,6 +709,7 @@ const AISBMM = {
         this.lastAnalysisTime = 0;
         this.clearSessionMetrics();
         this.originalQuestions = null;
+        this.generatedQuestions = { 2: null, 3: null };
         this.logEntries = [];
         this.logEvent('New game started — Difficulty reset to Normal', 'system');
         console.log('[AI-SBMM] Reset for new game — Difficulty: 1');
