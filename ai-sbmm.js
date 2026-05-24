@@ -244,7 +244,7 @@ const AISBMM = {
 
         // Weighted skill score delta for this answer
         const rawDelta = this.scoreAnswer(value, isCorrect, answerTimeMs);
-        // Apply community training modifier (subtle ±20% nudge based on aggregate data)
+        // Apply community training modifier (subtle ±35% nudge based on aggregate data)
         const ctMod = (typeof CommTraining !== 'undefined' && CommTraining.enabled)
             ? CommTraining.getScoreModifier(category, value, isCorrect)
             : 1.0;

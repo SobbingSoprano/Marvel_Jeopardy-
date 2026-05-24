@@ -143,8 +143,8 @@ const CommTraining = {
         const valMods = {};
 
         // Helper: given a raw stats table, compute pick/miss modifiers per key.
-        // Modifier range is deliberately small (±0.20 max) so community data
-        // nudges the scoring rather than dominating it.
+        // Modifier range is capped at ±0.35 so community data nudges the
+        // scoring without completely dominating it.
         const buildMods = (table, mods) => {
             const entries = Object.entries(table);
             if (!entries.length) return;
@@ -163,12 +163,12 @@ const CommTraining = {
                 const missRatio = avgMiss > 0 ? myMiss / avgMiss : 1;
 
                 // Popular pick (ratio > 1) → slight reduction on correct points reward.
-                // Rare pick   (ratio < 1) → slight bonus.  Cap: ±0.20.
-                const pickMod = Math.max(-0.20, Math.min(0.20, (1 - pickRatio) * 0.15));
+                // Rare pick   (ratio < 1) → slight bonus.  Cap: ±0.35.
+                const pickMod = Math.max(-0.35, Math.min(0.35, (1 - pickRatio) * 0.15));
 
                 // Commonly missed  → lighter penalty  (already hard enough).
                 // Rarely missed    → heavier penalty  (players should know this).
-                const missMod = Math.max(-0.20, Math.min(0.20, (1 - missRatio) * 0.15));
+                const missMod = Math.max(-0.35, Math.min(0.35, (1 - missRatio) * 0.15));
 
                 mods[key] = { pickMod, missMod };
             });
@@ -196,12 +196,12 @@ const CommTraining = {
         const catW = catMods[cKey] || { pickMod: 0, missMod: 0 };
         const valW = valMods[vKey] || { pickMod: 0, missMod: 0 };
 
-        // Average category and value modifiers; clamp total to ±0.20.
+        // Average category and value modifiers; clamp total to ±0.35.
         const raw = isCorrect
             ? (catW.pickMod + valW.pickMod) / 2
             : (catW.missMod + valW.missMod) / 2;
 
-        return 1.0 + Math.max(-0.20, Math.min(0.20, raw));
+        return 1.0 + Math.max(-0.35, Math.min(0.35, raw));
     },
 
     // =========================================================
@@ -285,6 +285,74 @@ const CommTraining = {
         } catch (err) {
             console.warn('[CommTraining] Failed to submit match data:', err);
         }
+    },
+
+    // =========================================================
+    // SEEDING — bootstrap the pool without external players
+    // =========================================================
+
+    // Generates synthetic match data and pushes it to Firebase so Community
+    // Training activates immediately (bypasses the 5-match minimum).
+    // Call from the browser console on any game page:
+    //   await CommTraining.seedSyntheticMatches(5)
+    async seedSyntheticMatches(count = 5) {
+        if (!this._ensureFirebase()) {
+            console.warn('[CommTraining] Firebase is not configured. Cannot seed synthetic data.');
+            return;
+        }
+
+        // Try to read categories from the current board; fall back to a generic list.
+        let categories = [];
+        if (typeof allQuestions !== 'undefined' && allQuestions) {
+            categories = Object.keys(allQuestions);
+        }
+        if (!categories.length) {
+            categories = ['Artifacts','Heroes','Villains','Events','Teams','Movies'];
+        }
+        const values = ['$200','$400','$600','$800','$1000'];
+
+        const statsRef = this._db.ref(this.DB_PATH + '/stats');
+        const inc = firebase.database.ServerValue.increment;
+
+        for (let m = 0; m < count; m++) {
+            const updates = {};
+            // A full match = 30 board picks
+            for (let i = 1; i <= 30; i++) {
+                const cat = categories[Math.floor(Math.random() * categories.length)];
+                const val = values[Math.floor(Math.random() * values.length)];
+                const isEarly = i <= 15;
+                // Higher values are tougher → lower correct chance
+                const valIndex = values.indexOf(val);
+                const correctChance = 0.75 - (valIndex * 0.08); // ~0.75 → 0.43
+                const isCorrect = Math.random() < correctChance;
+
+                const cKey = cat.replace(/[.#$[\]]/g, '_');
+                const vKey = val.replace('$', '');
+
+                const cb = `categories/${cKey}`;
+                const vb = `values/${vKey}`;
+
+                updates[`${cb}/totalPicks`] = inc(1);
+                updates[`${vb}/totalPicks`] = inc(1);
+                updates[`${cb}/total`]      = inc(1);
+                updates[`${vb}/total`]      = inc(1);
+                if (isEarly) {
+                    updates[`${cb}/earlyPicks`] = inc(1);
+                    updates[`${vb}/earlyPicks`] = inc(1);
+                }
+                if (isCorrect) {
+                    updates[`${cb}/correct`] = inc(1);
+                    updates[`${vb}/correct`] = inc(1);
+                }
+            }
+            updates['matchCount'] = inc(1);
+            await statsRef.update(updates);
+        }
+
+        console.log(`[CommTraining] Seeded ${count} synthetic matches. Refreshing weights...`);
+        this.weightsFetchedAt = 0;
+        sessionStorage.removeItem('mj_ct_weights');
+        await this.fetchWeights();
     },
 
     // =========================================================
