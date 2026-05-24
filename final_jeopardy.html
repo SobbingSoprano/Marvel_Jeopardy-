@@ -94,7 +94,7 @@
 
         <form id="answerForm" class="question-form">
             <div id="answerFields"></div>
-            <button type="submit" class="submit-btn">Submit Answers</button>
+            <p id="lockInStatus" style="text-align:center;color:#d4af37;font-family:'Anton',sans-serif;margin-top:10px;"></p>
         </form>
     </div>
 </div>
@@ -129,6 +129,9 @@
     const playerCount = gameState.playerCount;
     const playerNames = gameState.playerNames;
     const playerScores = gameState.playerScores;
+
+    // Tracks which local players have locked in their Final Jeopardy answers
+    let lockedAnswers = {};
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
@@ -185,25 +188,30 @@
 
         const container = document.getElementById('answerFields');
         container.innerHTML = '';
+        lockedAnswers = {};
+        updateLockInStatus();
 
         for (let i = 1; i <= playerCount; i++) {
             const div = document.createElement('div');
-            div.style.marginBottom = '12px';
+            div.className = 'fj-player-answer';
+            div.style.marginBottom = '16px';
+            div.dataset.player = i;
             div.innerHTML = `
                 <label class="question-label">${escapeHtml(playerNames[i])}'s Answer:</label>
-                <div style="display:flex;gap:8px;align-items:center;">
+                <div class="fj-input-row" style="display:flex;gap:8px;align-items:center;">
                     <input type="password" id="answer_${i}" class="question-input" placeholder="e.g., What is Adamantium?" required style="flex:1;">
                     <button type="button" class="toggle-answer-btn" data-target="answer_${i}" style="padding:6px 10px;font-size:12px;cursor:pointer;background:#333;color:#fff;border:1px solid #555;border-radius:4px;white-space:nowrap;">👁 Show</button>
+                    <button type="button" class="lock-in-btn" data-player="${i}" style="padding:6px 14px;font-size:12px;cursor:pointer;background:#d4af37;color:#000;border:1px solid #d4af37;border-radius:4px;font-weight:bold;white-space:nowrap;">🔒 Lock In</button>
                 </div>
             `;
             container.appendChild(div);
         }
 
-        // Attach show/hide toggles so players can verify their own answer
-        // without exposing it to opponents on the shared screen
+        // Attach show/hide toggles
         container.querySelectorAll('.toggle-answer-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const input = document.getElementById(this.dataset.target);
+                if (!input || input.disabled) return;
                 if (input.type === 'password') {
                     input.type = 'text';
                     this.textContent = '🙈 Hide';
@@ -214,7 +222,71 @@
             });
         });
 
+        // Attach lock-in handlers (click + Enter key)
+        container.querySelectorAll('.lock-in-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                lockInAnswer(parseInt(this.dataset.player));
+            });
+        });
+
+        container.querySelectorAll('input[id^="answer_"]').forEach(input => {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const playerNum = parseInt(this.id.replace('answer_', ''));
+                    lockInAnswer(playerNum);
+                }
+            });
+        });
+
         document.getElementById('questionScreen').style.display = 'flex';
+    }
+
+    function lockInAnswer(playerNum) {
+        const input = document.getElementById(`answer_${playerNum}`);
+        if (!input || input.disabled) return;
+
+        const answer = input.value.trim();
+        if (!answer) {
+            input.style.borderColor = '#ff0000';
+            setTimeout(() => { input.style.borderColor = ''; }, 500);
+            return;
+        }
+
+        lockedAnswers[playerNum] = answer;
+        input.disabled = true;
+
+        // Replace the input row with a locked indicator
+        const row = input.closest('.fj-input-row');
+        if (row) {
+            row.innerHTML = `
+                <div style="flex:1;padding:0.7em;border:2px solid #00ff00;border-radius:8px;background:#001100;color:#00ff00;font-family:'Anton',sans-serif;font-size:1.3em;text-align:center;">
+                    🔒 ${escapeHtml(playerNames[playerNum])} LOCKED IN
+                </div>
+            `;
+        }
+
+        updateLockInStatus();
+
+        // If everyone has locked in, auto-submit
+        if (Object.keys(lockedAnswers).length === playerCount) {
+            FinalJeopardy.submitAnswers(lockedAnswers);
+            renderStage();
+        }
+    }
+
+    function updateLockInStatus() {
+        const lockedCount = Object.keys(lockedAnswers).length;
+        const statusEl = document.getElementById('lockInStatus');
+        if (statusEl) {
+            if (lockedCount === 0) {
+                statusEl.textContent = 'Each player: type your answer, then press Enter or click Lock In';
+            } else if (lockedCount < playerCount) {
+                statusEl.textContent = `${lockedCount} of ${playerCount} locked in — waiting for others...`;
+            } else {
+                statusEl.textContent = 'All players locked in! Revealing results...';
+            }
+        }
     }
 
     function showResultsScreen() {
@@ -279,17 +351,10 @@
         renderStage();
     });
 
-    // Answer form submission
+    // Answer form submission — prevent default so Enter only locks the
+    // focused player's answer instead of submitting the whole form.
     document.getElementById('answerForm').addEventListener('submit', function(e) {
         e.preventDefault();
-
-        const answers = {};
-        for (let i = 1; i <= playerCount; i++) {
-            answers[i] = document.getElementById(`answer_${i}`).value;
-        }
-
-        FinalJeopardy.submitAnswers(answers);
-        renderStage();
     });
 
     // Return button - clear game state
