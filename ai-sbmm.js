@@ -15,6 +15,9 @@ const AISBMM = {
     analysisCooldown: 12000, // ms between Gemini calls
     originalQuestions: null,
     generatedQuestions: { 2: null, 3: null }, // Cached Hard/Expert sets per level
+    difficultyChangeCount: 0,
+    difficultyHistory: [],
+    answersSinceDifficultyChange: 0,
     logEntries: [],          // in-memory log (Ctrl+S to print)
     logMaxEntries: 60,       // keep the last N entries
 
@@ -249,7 +252,11 @@ const AISBMM = {
         const ctMod = (typeof CommTraining !== 'undefined' && CommTraining.enabled)
             ? CommTraining.getScoreModifier(category, value, isCorrect)
             : 1.0;
-        const delta = rawDelta * ctMod;
+        // Oscillation dampener: reduce swing magnitude by 40% when bouncing
+        // between two difficulties so the player settles into the right tier.
+        const isOsc = this.isOscillating();
+        const oscMod = isOsc ? 0.6 : 1.0;
+        const delta = rawDelta * ctMod * oscMod;
         playerStats.skillScore = (playerStats.skillScore || 0) + delta;
 
         // Log this pick for community training (pick index = total answered so far + 1)
@@ -258,6 +265,7 @@ const AISBMM = {
             CommTraining.logPick(category, value, pickIndex, isCorrect);
         }
         this.sessionMetrics.pickCount = (this.sessionMetrics.pickCount || 0) + 1;
+        this.answersSinceDifficultyChange++;
 
         if (isCorrect) {
             playerStats.correctStreak++;
@@ -279,8 +287,9 @@ const AISBMM = {
         const currentScore = playerStats.skillScore || 0;
         const nextThreshold = currentScore >= 0 ? this.thresholds.skillScoreUp : this.thresholds.skillScoreDown;
         const scoreStr = `${currentScore >= 0 ? '+' : ''}${currentScore.toFixed(1)}/${nextThreshold}`;
+        const oscStr = isOsc ? ' [OSC -40%]' : '';
         this.logEvent(
-            `P${playerNum} • ${category} ${value}${timeStr} — ${isCorrect ? 'CORRECT' : 'WRONG'} [${deltaStr} pts. ${scoreStr}]`,
+            `P${playerNum} • ${category} ${value}${timeStr} — ${isCorrect ? 'CORRECT' : 'WRONG'} [${deltaStr} pts. ${scoreStr}]${oscStr}`,
             entryType
         );
         if (answerTimeMs) {
@@ -370,7 +379,10 @@ const AISBMM = {
         const ctMod = (typeof CommTraining !== 'undefined' && CommTraining.enabled)
             ? CommTraining.getScoreModifier(category, value, false)
             : 1.0;
-        const penalty = rawPenalty * ctMod;
+        // Oscillation dampener
+        const isOsc = this.isOscillating();
+        const oscMod = isOsc ? 0.6 : 1.0;
+        const penalty = rawPenalty * ctMod * oscMod;
 
         const playerStats = this.getPlayerStats(playerNum);
         playerStats.totalAnswers++;
@@ -383,6 +395,7 @@ const AISBMM = {
             CommTraining.logPick(category, value, pickIndex, false);
         }
         this.sessionMetrics.pickCount = (this.sessionMetrics.pickCount || 0) + 1;
+        this.answersSinceDifficultyChange++;
 
         // Count as a wrong for streak purposes — feeds both skillScoreDown and easyStreak checks
         playerStats.wrongStreak++;
@@ -401,7 +414,9 @@ const AISBMM = {
         const naScore = playerStats.skillScore || 0;
         const naThreshold = naScore >= 0 ? this.thresholds.skillScoreUp : this.thresholds.skillScoreDown;
         const naScoreStr = `${naScore >= 0 ? '+' : ''}${naScore.toFixed(1)}/${naThreshold}`;
-        this.logEvent(`P${playerNum} • ${category} ${value} — NO ANSWER [${(-(base * 1.25)).toFixed(1)} pts. ${naScoreStr}]`, 'timeout');
+        const penaltyStr = penalty >= 0 ? `+${penalty.toFixed(1)}` : penalty.toFixed(1);
+        const oscStr = isOsc ? ' [OSC -40%]' : '';
+        this.logEvent(`P${playerNum} • ${category} ${value} — NO ANSWER [${penaltyStr} pts. ${naScoreStr}]${oscStr}`, 'timeout');
         this.saveSessionMetrics();
         this.updateScoreLog();
         this.evaluateDifficulty(playerNum);
@@ -441,8 +456,17 @@ const AISBMM = {
     },
 
     setDifficulty(level) {
+        const oldLevel = this.difficultyLevel;
         this.difficultyLevel = Math.max(1, Math.min(3, level));
         localStorage.setItem('mj_ai_sbmm_difficulty', this.difficultyLevel.toString());
+
+        if (oldLevel !== this.difficultyLevel) {
+            this.difficultyChangeCount++;
+            this.difficultyHistory.push(this.difficultyLevel);
+            if (this.difficultyHistory.length > 5) this.difficultyHistory.shift();
+            this.answersSinceDifficultyChange = 0;
+        }
+
         const label = ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel];
         console.log('[AI-SBMM] Difficulty adjusted to:', this.difficultyLevel);
         this.logEvent(`⚡ Difficulty → ${label} (Level ${this.difficultyLevel})`, 'difficulty');
@@ -451,6 +475,23 @@ const AISBMM = {
         this.resetAllPlayerStreaks();
         this.updateScoreLog();
         this.applyDifficultyToQuestions();
+    },
+
+    // Detects if the player is oscillating between two difficulty levels.
+    // When true, all skill-point deltas are reduced by 40% to dampen swings.
+    isOscillating() {
+        if (this.difficultyChangeCount < 3) return false;
+        const h = this.difficultyHistory;
+        if (h.length < 3) return false;
+
+        // Last 3 changes must alternate between exactly 2 levels (e.g., 1→2→1 or 2→1→2)
+        const recent = h.slice(-3);
+        const unique = [...new Set(recent)];
+        if (unique.length !== 2) return false;
+        if (recent[0] !== recent[2]) return false;
+
+        // Only penalize while we're still early in the current difficulty stint
+        return this.answersSinceDifficultyChange <= 5;
     },
 
     // ========================================
@@ -710,6 +751,9 @@ const AISBMM = {
         this.clearSessionMetrics();
         this.originalQuestions = null;
         this.generatedQuestions = { 2: null, 3: null };
+        this.difficultyChangeCount = 0;
+        this.difficultyHistory = [];
+        this.answersSinceDifficultyChange = 0;
         this.logEntries = [];
         this.logEvent('New game started — Difficulty reset to Normal', 'system');
         console.log('[AI-SBMM] Reset for new game — Difficulty: 1');
