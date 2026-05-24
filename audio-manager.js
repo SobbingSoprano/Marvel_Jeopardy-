@@ -11,6 +11,8 @@ const AudioManager = {
     fadeTime: 500, // ms for fade transitions
     volume: 0.7,   // default volume
     preloadedAudio: {}, // Cache for preloaded audio
+    _pendingResume: false,
+    _pausedByVisibility: false,
     
     tracks: {
         'menu': 'Assets/Sounds/krakoa-menu-theme.mp3',
@@ -49,8 +51,24 @@ const AudioManager = {
         }
         this.currentAudio = document.getElementById('audioManager');
         
+        // Restore state from a previous session (reload / bfcache)
+        const state = this.restoreState();
+        if (state && state.currentTrack) {
+            this.currentTrack = state.currentTrack;
+            this.currentAudio.muted = !!state.muted;
+            if (!this.currentAudio.src) {
+                this.currentAudio.src = this.tracks[state.currentTrack] || state.currentTrack;
+                this.currentAudio.loop = true;
+            }
+            if (state.wasPlaying) {
+                this.currentAudio.volume = 0;
+                this._pendingResume = true;
+            }
+        }
+        
         // Handle browser autoplay restrictions
         this.setupAutoplayHandler();
+        this.setupLifecycleHandlers();
         
         return this;
     },
@@ -58,8 +76,18 @@ const AudioManager = {
     // Setup autoplay handler for browser restrictions
     setupAutoplayHandler() {
         const startAudio = () => {
-            if (this.currentAudio && this.currentAudio.paused && this.currentTrack) {
-                this.currentAudio.play().catch(() => {});
+            // Unlock Web Audio context for sound effects first
+            if (typeof SoundEffects !== 'undefined') {
+                SoundEffects.resumeAudioContext();
+            }
+
+            if (this.currentAudio && this.currentAudio.paused) {
+                if (this._pendingResume && this.currentTrack) {
+                    this._pendingResume = false;
+                    this.currentAudio.play().then(() => this.fadeIn()).catch(() => {});
+                } else if (this.currentTrack) {
+                    this.currentAudio.play().catch(() => {});
+                }
             }
             document.removeEventListener('click', startAudio);
             document.removeEventListener('keydown', startAudio);
@@ -69,6 +97,82 @@ const AudioManager = {
         document.addEventListener('click', startAudio);
         document.addEventListener('keydown', startAudio);
         document.addEventListener('touchstart', startAudio);
+    },
+
+    // Persist audio state so it survives reloads and bfcache restores
+    saveState() {
+        try {
+            sessionStorage.setItem('mj_audio_state', JSON.stringify({
+                currentTrack: this.currentTrack,
+                volume: this.volume,
+                muted: this.currentAudio ? this.currentAudio.muted : false,
+                wasPlaying: this.currentAudio && !this.currentAudio.paused
+            }));
+        } catch (_) {}
+    },
+
+    restoreState() {
+        try {
+            const raw = sessionStorage.getItem('mj_audio_state');
+            if (raw) {
+                const state = JSON.parse(raw);
+                if (typeof state.volume === 'number') this.volume = state.volume;
+                return state;
+            }
+        } catch (_) {}
+        return null;
+    },
+
+    // Lifecycle helpers for reload / bfcache / tab-switching
+    setupLifecycleHandlers() {
+        // Save state before leaving
+        window.addEventListener('beforeunload', () => this.saveState());
+        window.addEventListener('pagehide', () => this.saveState());
+
+        // Restore on back-forward cache (bfcache) restore
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) {
+                // Page was restored from bfcache — audio element may be stale
+                this._rebuildAudioElement();
+                const state = this.restoreState();
+                if (state && state.currentTrack && state.wasPlaying) {
+                    this.currentTrack = state.currentTrack;
+                    this.currentAudio.src = this.tracks[state.currentTrack] || state.currentTrack;
+                    this.currentAudio.loop = true;
+                    this.currentAudio.muted = !!state.muted;
+                    this.currentAudio.volume = 0;
+                    // Wait for user interaction before actually playing
+                    this._pendingResume = true;
+                }
+            }
+        });
+
+        // Pause when tab hidden, resume when visible
+        document.addEventListener('visibilitychange', () => {
+            if (!this.currentAudio) return;
+            if (document.hidden) {
+                this.saveState();
+                if (!this.currentAudio.paused) {
+                    this.currentAudio.pause();
+                    this._pausedByVisibility = true;
+                }
+            } else if (this._pausedByVisibility) {
+                this._pausedByVisibility = false;
+                this.currentAudio.play().catch(() => {});
+            }
+        });
+    },
+
+    _rebuildAudioElement() {
+        const old = document.getElementById('audioManager');
+        if (old) old.remove();
+        const audio = document.createElement('audio');
+        audio.id = 'audioManager';
+        audio.loop = true;
+        audio.volume = 0;
+        audio.preload = 'auto';
+        document.body.appendChild(audio);
+        this.currentAudio = audio;
     },
     
     // Play a track with fade in
@@ -213,6 +317,7 @@ const AudioManager = {
                 this.currentAudio.src = '';
                 this.currentTrack = null;
             }
+            try { sessionStorage.removeItem('mj_audio_state'); } catch (_) {}
         });
     },
     
@@ -265,9 +370,32 @@ const SoundEffects = {
         this.preload('ct-hover', 'Assets/Sounds/community-train. hover.wav');
         this.preload('telephone', 'Assets/Sounds/telephone.wav');
 
+        // Proactively create AudioContext so we can resume it on interaction
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) this.audioContext = new AC();
+        } catch (_) {}
+
+        // Global interaction handler to unlock Web Audio after reloads / bfcache
+        const unlockAudio = () => {
+            this.resumeAudioContext();
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('keydown', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
+
         this.setupClickSound();
         this.setupCardHoverSounds();
         this.setupTabHoverSounds();
+    },
+
+    resumeAudioContext() {
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume().catch(() => {});
+        }
     },
 
     preload(name, url) {
@@ -283,6 +411,9 @@ const SoundEffects = {
         const audio = this.sounds[name];
         if (!audio) return;
 
+        // Ensure AudioContext is running (browsers suspend it on reload)
+        this.resumeAudioContext();
+
         // Clone to allow overlapping playback and avoid cutting off
         const clone = audio.cloneNode();
         clone.volume = Math.max(0, Math.min(1, volume));
@@ -296,9 +427,7 @@ const SoundEffects = {
                 if (!this.audioContext) {
                     this.audioContext = new AC();
                 }
-                if (this.audioContext.state === 'suspended') {
-                    this.audioContext.resume().catch(() => {});
-                }
+                this.resumeAudioContext();
 
                 const source = this.audioContext.createMediaElementSource(clone);
                 const panner = this.audioContext.createStereoPanner();
