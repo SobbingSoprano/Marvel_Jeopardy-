@@ -120,75 +120,46 @@ const VALUES = ["$200", "$400", "$600", "$800", "$1000"];
 const MODEL = 'gemini-3-flash-preview';
 
 function buildPrompt(difficultyLevel, metricsSummary, existingQuestions) {
-    // Flatten existing questions into a readable list so Gemini can avoid duplicates
+    // Compact existing-questions block — only question text to save tokens & latency
     let existingBlock = '';
     if (existingQuestions && typeof existingQuestions === 'object') {
         const lines = [];
         for (const cat of Object.keys(existingQuestions)) {
             for (const val of Object.keys(existingQuestions[cat] || {})) {
                 const q = existingQuestions[cat][val]?.question;
-                if (q) lines.push(`[${cat} ${val}] ${q}`);
+                if (q) lines.push(`- ${q}`);
             }
         }
         if (lines.length) {
-            existingBlock = `
-Questions ALREADY ON THE BOARD (do NOT reuse these clues or factual premises — generate entirely new ones):
-${lines.join('\n')}
-`;
+            existingBlock = `\nEXISTING QUESTIONS (do NOT reuse):\n${lines.join('\n')}\n`;
         }
     }
 
-    return `
-You are an AI game master for a Marvel-themed Jeopardy game.
-Current difficulty level: ${difficultyLevel} (1=Normal, 2=Hard, 3=Expert)
+    const diffDesc = difficultyLevel === 2
+        ? 'Hard: specific knowledge — supporting characters, exact titles, less famous events.'
+        : 'Expert: deep-cut lore — obscure aliases, issue numbers, creators, rare variants.';
 
-Player Performance Summary:
+    return `You are a Marvel Jeopardy game master.
+Difficulty: ${difficultyLevel} — ${diffDesc}
+
+Player stats:
 ${metricsSummary}
 ${existingBlock}
-Task: Generate a COMPLETE and VALID JSON object with updated Jeopardy questions for ALL categories and values listed below.
+Generate a COMPLETE JSON board for ALL categories and values below.
 
 Rules:
-- "question": A proper Jeopardy-style CLUE written as a declarative statement — NOT a question.
-  The clue must describe the answer without naming it directly.
-  Good examples:
-    "This star-spangled super-soldier from Brooklyn leads the Avengers"
-    "Forged in Wakanda, only the worthy may lift this enchanted hammer"
-    "Dormammu rules this dark realm from which Doctor Strange must never draw too much power"
-  Bad examples (do NOT use these formats):
-    "Who is the leader of the Avengers?"  ← question form, forbidden
-    "What is Thor's hammer called?"        ← question form, forbidden
-- Keep every clue concise — 12 to 22 words maximum.
-- "answer": An array of 1-3 short acceptable answer strings, all lowercase, WITHOUT any Jeopardy phrasing.
-  Good: ["thor", "thor odinson"]   Bad: ["What is Thor?", "Who is Thor?"]
-- Within EVERY difficulty level, question difficulty must scale with point value:
-    $200 = easiest in this tier (broad knowledge, iconic characters/events)
-    $400 = moderate
-    $600 = specific (supporting cast, exact titles, notable but non-headline events)
-    $800 = hard (obscure details, lesser-known facts)
-    $1000 = hardest in this tier (deep lore, creators, rare aliases, minor variants)
-  Think of difficulty level as raising the entire baseline — a $200 at difficulty 3 should feel like a $600 at difficulty 1.
-- Difficulty 2 (Hard): Require more specific Marvel knowledge — supporting characters, exact titles, less famous events.
-- Difficulty 3 (Expert): Deep-cut lore — obscure aliases, storyline issue numbers, creators, less-known variants. Still keep the clue concise.
-- All questions must be factually accurate Marvel canon.
-- Do NOT reuse any clue or factual premise already listed in the "Questions ALREADY ON THE BOARD" section above.
-- Do NOT include the answer (or any obvious keywords from the answer) directly in the clue text. The clue must describe the answer without naming it.
-  Bad example: "Thanos snapped his fingers wearing this golden glove" — "Thanos" and "golden glove" give away "Infinity Gauntlet".
-  Good example: "Six stones rest in this golden artifact that grants omnipotence to its wearer" — describes without naming.
-- Do NOT wrap the JSON in markdown code blocks. Output raw JSON only.
+- "question": Declarative clue, 12–22 words. NEVER a question. NEVER names the answer or obvious keywords.
+  Bad: "Who leads the Avengers?" or "Thanos wore this golden glove"
+  Good: "This star-spangled soldier from Brooklyn leads Earth's mightiest heroes"
+- "answer": 1–3 lowercase strings, no Jeopardy phrasing. e.g. ["thor", "thor odinson"]
+- Difficulty scales with value: $200=easiest in tier, $1000=hardest. Level raises the baseline.
+- All clues must be factually accurate Marvel canon.
+- Do NOT reuse any existing question above.
 
 Categories: ${CATEGORIES.join(', ')}
-Values (point values per category): ${VALUES.join(', ')}
+Values: ${VALUES.join(', ')}
 
-Output ONLY this JSON structure, nothing else:
-{
-  "People": { "$200": { "question": "...", "answer": ["..."] }, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
-  "Powers": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
-  "Artifacts": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
-  "Media": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
-  "Teams": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} },
-  "Places": { "$200": {...}, "$400": {...}, "$600": {...}, "$800": {...}, "$1000": {...} }
-}
-`.trim();
+Output ONLY raw JSON — no markdown, no commentary.`;
 }
 
 function buildTelephonePrompt(pairs) {
@@ -395,9 +366,25 @@ export default async function handler(req, res) {
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 8192,
-                        responseMimeType: 'application/json'
+                        temperature: 0.65,
+                        maxOutputTokens: 4096,
+                        responseMimeType: 'application/json',
+                        responseSchema: {
+                            type: 'object',
+                            properties: Object.fromEntries(CATEGORIES.map(c => [c, {
+                                type: 'object',
+                                properties: Object.fromEntries(VALUES.map(v => [v, {
+                                    type: 'object',
+                                    properties: {
+                                        question: { type: 'string' },
+                                        answer:   { type: 'array',  items: { type: 'string' } }
+                                    },
+                                    required: ['question', 'answer']
+                                }])),
+                                required: VALUES
+                            }])),
+                            required: CATEGORIES
+                        }
                     }
                 })
             }

@@ -682,6 +682,9 @@ const AISBMM = {
                     '| Details:', errData.details || '(none)'
                 );
 
+                // Show fail feedback immediately so the user knows something went wrong
+                this._indicatorFail();
+
                 // Retry once on 502/503/504 errors (Vercel proxy or Gemini unavailability)
                 if ((response.status === 502 || response.status === 503 || response.status === 504) && attempt === 1) {
                     console.log('[AI-SBMM] Retrying question generation after ' + response.status + '...');
@@ -692,7 +695,6 @@ const AISBMM = {
 
                 // Back off a full cooldown so a broken endpoint isn't hammered
                 this.lastAnalysisTime = Date.now();
-                this._indicatorFail();
                 return;
             }
 
