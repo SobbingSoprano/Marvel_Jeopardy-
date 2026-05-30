@@ -56,7 +56,61 @@ const AISBMM = {
             this._registerStatsShortcut();
         }
         this.updateToggleButton();
+        this.injectSbmmIndicator();
         this.checkGeminiHealth();
+    },
+
+    // ── In-game API activity indicator ─────────────────────────────────────
+    injectSbmmIndicator() {
+        if (document.getElementById('sbmm-indicator-wrap')) return;
+        const gameContent = document.getElementById('gameContent');
+        if (!gameContent || !gameContent.parentNode) return;
+
+        const wrap = document.createElement('div');
+        wrap.id = 'sbmm-indicator-wrap';
+        wrap.className = 'sbmm-indicator-wrap';
+        wrap.innerHTML = '<div class="sbmm-indicator-dot" id="sbmm-indicator-dot"></div>';
+        gameContent.parentNode.insertBefore(wrap, gameContent);
+        this._updateIndicatorVisibility();
+    },
+
+    _updateIndicatorVisibility() {
+        const wrap = document.getElementById('sbmm-indicator-wrap');
+        if (!wrap) return;
+        wrap.classList.toggle('visible', this.enabled);
+    },
+
+    _indicatorSuccess() {
+        const dot = document.getElementById('sbmm-indicator-dot');
+        if (!dot) return;
+        dot.style.background = '#ffaa00';
+        this._runBlink(dot, 3, 400);
+    },
+
+    _indicatorFail() {
+        const dot = document.getElementById('sbmm-indicator-dot');
+        if (!dot) return;
+        dot.style.background = '#ffaa00';
+        this._runBlink(dot, 1, 400, () => {
+            dot.style.background = '#ff0000';
+            this._runBlink(dot, 2, 400);
+        });
+    },
+
+    _runBlink(dot, times, intervalMs, onDone) {
+        let count = 0;
+        const max = times * 2;
+        const step = () => {
+            dot.style.opacity = (count % 2 === 0) ? '1' : '0';
+            count++;
+            if (count < max) {
+                setTimeout(step, intervalMs);
+            } else {
+                dot.style.opacity = '0';
+                if (onDone) onDone();
+            }
+        };
+        step();
     },
 
     // ── Gemini health check ────────────────────────────────────────────────
@@ -210,6 +264,7 @@ const AISBMM = {
         this.enabled = !this.enabled;
         localStorage.setItem('mj_ai_sbmm_enabled', this.enabled ? '1' : '0');
         this.updateToggleButton();
+        this._updateIndicatorVisibility();
         if (this.enabled) {
             this.logEvent('AI-SBMM enabled — Difficulty ' + ['', 'Normal', 'Hard', 'Expert'][this.difficultyLevel], 'system');
             this._registerStatsShortcut();
@@ -607,6 +662,7 @@ const AISBMM = {
                 );
                 // Back off a full cooldown so a broken endpoint isn't hammered
                 this.lastAnalysisTime = Date.now();
+                this._indicatorFail();
                 return;
             }
 
@@ -615,6 +671,7 @@ const AISBMM = {
             this.applyGeminiResponse(text, requestedLevel);
         } catch (err) {
             console.error('[AI-SBMM] Gemini request failed:', err);
+            this._indicatorFail();
         }
     },
 
@@ -644,9 +701,11 @@ const AISBMM = {
             if (result && result.replaced > 0) {
                 this.generatedQuestions[requestedLevel] = JSON.parse(JSON.stringify(newQuestions));
             }
+            this._indicatorSuccess();
         } catch (err) {
             console.error('[AI-SBMM] Failed to parse Gemini response:', err);
             this.logEvent('Gemini update failed — keeping current board', 'system');
+            this._indicatorFail();
         }
     },
 

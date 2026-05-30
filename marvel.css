@@ -2469,6 +2469,51 @@ body.game-page {
 .sbmm-tab-tooltip strong { color: #ffaa00; }
 .ct-tab-tooltip   strong { color: #00aaff; }
 
+/* ── AI-SBMM API Activity Indicator ─────────────────────────────────────── */
+.sbmm-indicator-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 10px;
+    width: fit-content;
+    min-width: 30px;
+    height: 10px;
+    padding: 0 8px;
+    background: #000;
+    border-radius: 20px;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+    position: relative;
+    z-index: 10;
+}
+
+.sbmm-indicator-wrap.visible {
+    opacity: 1;
+}
+
+.sbmm-indicator-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffaa00;
+    opacity: 0;
+    transition: background 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    .sbmm-indicator-wrap {
+        min-width: 24px;
+        height: 8px;
+        padding: 0 6px;
+        margin-bottom: 8px;
+    }
+    .sbmm-indicator-dot {
+        width: 4px;
+        height: 4px;
+    }
+}
+
 .sbmm-tab-tooltip p,
 .ct-tab-tooltip   p {
     margin: 0;

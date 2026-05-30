@@ -12,7 +12,7 @@ Set them in Vercel Dashboard:
   Project Settings → Environment Variables
 
 RATE LIMITING (per IP, sliding-window):
-  SBMM question generation : 5 req / 15 min
+  SBMM question generation : 15 req / 15 min
   Telephone scoring         : 20 req / 15 min
   Global (all types)        : 50 req / 15 min
 
@@ -29,7 +29,7 @@ NOTE: Rate-limit state is in-process memory.
 // Keys are  "<ip>:<type>"  and  "<ip>:global".
 
 const RATE_LIMITS = {
-    sbmm:      { windowMs: 15 * 60 * 1000, max: 5  }, // expensive: full board gen
+    sbmm:      { windowMs: 15 * 60 * 1000, max: 15 }, // expensive: full board gen
     telephone: { windowMs: 15 * 60 * 1000, max: 20 }, // cheaper:   pair scoring
     global:    { windowMs: 15 * 60 * 1000, max: 50 }, // total cap across all types
 };
