@@ -286,10 +286,28 @@
             return validPhrases.some(phrase => lower.startsWith(phrase + ' '));
         }
 
-        function getSuggestedPrefix(category, value) {
+        function getSuggestedPrefix(category, value, answer) {
+            if (answer && _isKnownPerson(answer)) return 'Who is';
+            if (answer && _isKnownTeam(answer)) return 'Who are';
             if (category === 'People') return 'Who is';
             if (category === 'Teams') return 'Who are';
             return 'What is';
+        }
+
+        function _isKnownPerson(answer) {
+            if (typeof allQuestions === 'undefined' || !allQuestions['People']) return false;
+            const normalized = answer.toLowerCase().trim();
+            return Object.values(allQuestions['People']).some(q =>
+                q.answer.some(a => a.toLowerCase().trim() === normalized)
+            );
+        }
+
+        function _isKnownTeam(answer) {
+            if (typeof allQuestions === 'undefined' || !allQuestions['Teams']) return false;
+            const normalized = answer.toLowerCase().trim();
+            return Object.values(allQuestions['Teams']).some(q =>
+                q.answer.some(a => a.toLowerCase().trim() === normalized)
+            );
         }
 
         function getCorrectAnswerFormatted(category, value) {

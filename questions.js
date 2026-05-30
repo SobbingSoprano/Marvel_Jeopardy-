@@ -323,13 +323,34 @@ const GameState = {
 
     // Get suggested phrasing prefix based on what the answer represents
     // In Jeopardy: people = "Who is", teams = "Who are", everything else = "What is"
-    getSuggestedPrefix(category, value) {
+    getSuggestedPrefix(category, value, answer) {
+        // If the answer itself is a known person or team (even in a non-People/Teams
+        // category like Powers or Artifacts), use the appropriate prefix.
+        if (answer && this._isKnownPerson(answer)) return 'Who is';
+        if (answer && this._isKnownTeam(answer)) return 'Who are';
+
         // People category = individuals
         if (category === 'People') return 'Who is';
         // Teams category = groups of people
         if (category === 'Teams') return 'Who are';
         // Places, Powers, Artifacts, Media = things/concepts/places/titles
         return 'What is';
+    },
+
+    _isKnownPerson(answer) {
+        if (typeof allQuestions === 'undefined' || !allQuestions['People']) return false;
+        const normalized = answer.toLowerCase().trim();
+        return Object.values(allQuestions['People']).some(q =>
+            q.answer.some(a => a.toLowerCase().trim() === normalized)
+        );
+    },
+
+    _isKnownTeam(answer) {
+        if (typeof allQuestions === 'undefined' || !allQuestions['Teams']) return false;
+        const normalized = answer.toLowerCase().trim();
+        return Object.values(allQuestions['Teams']).some(q =>
+            q.answer.some(a => a.toLowerCase().trim() === normalized)
+        );
     },
 
     // Normalize answer for flexible matching (preserves content after stripping prefix)
@@ -489,8 +510,8 @@ const GameState = {
 
     // Get correct answer with suggested Jeopardy phrasing
     getCorrectAnswerFormatted(category, value) {
-        const prefix = this.getSuggestedPrefix(category, value);
         const answer = this.getCorrectAnswer(category, value);
+        const prefix = this.getSuggestedPrefix(category, value, answer);
         const allAnswers = allQuestions[category]?.[value]?.answer || [];
         const formattedAnswer = this.formatAnswerGrammar(answer, category, allAnswers);
         return `${prefix} ${formattedAnswer}?`;
