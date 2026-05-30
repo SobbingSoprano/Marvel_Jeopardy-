@@ -171,6 +171,9 @@ Rules:
 - Difficulty 3 (Expert): Deep-cut lore — obscure aliases, storyline issue numbers, creators, less-known variants. Still keep the clue concise.
 - All questions must be factually accurate Marvel canon.
 - Do NOT reuse any clue or factual premise already listed in the "Questions ALREADY ON THE BOARD" section above.
+- Do NOT include the answer (or any obvious keywords from the answer) directly in the clue text. The clue must describe the answer without naming it.
+  Bad example: "Thanos snapped his fingers wearing this golden glove" — "Thanos" and "golden glove" give away "Infinity Gauntlet".
+  Good example: "Six stones rest in this golden artifact that grants omnipotence to its wearer" — describes without naming.
 - Do NOT wrap the JSON in markdown code blocks. Output raw JSON only.
 
 Categories: ${CATEGORIES.join(', ')}
