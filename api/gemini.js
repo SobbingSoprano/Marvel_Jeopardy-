@@ -367,24 +367,8 @@ export default async function handler(req, res) {
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.65,
-                        maxOutputTokens: 4096,
-                        responseMimeType: 'application/json',
-                        responseSchema: {
-                            type: 'object',
-                            properties: Object.fromEntries(CATEGORIES.map(c => [c, {
-                                type: 'object',
-                                properties: Object.fromEntries(VALUES.map(v => [v, {
-                                    type: 'object',
-                                    properties: {
-                                        question: { type: 'string' },
-                                        answer:   { type: 'array',  items: { type: 'string' } }
-                                    },
-                                    required: ['question', 'answer']
-                                }])),
-                                required: VALUES
-                            }])),
-                            required: CATEGORIES
-                        }
+                        maxOutputTokens: 8192,
+                        responseMimeType: 'application/json'
                     }
                 })
             }

@@ -98,7 +98,7 @@ const AISBMM = {
         // Ensure container is visible before blinking
         wrap.classList.add('visible');
         dot.style.background = '#ffaa00';
-        this._runBlink(dot, 3, 400);
+        this._runBlink(dot, 3, 500);
     },
 
     _indicatorFail() {
@@ -112,13 +112,16 @@ const AISBMM = {
         // Ensure container is visible before blinking
         wrap.classList.add('visible');
         dot.style.background = '#ffaa00';
-        this._runBlink(dot, 1, 400, () => {
+        this._runBlink(dot, 1, 500, () => {
             dot.style.background = '#ff0000';
-            this._runBlink(dot, 2, 400);
+            this._runBlink(dot, 2, 500);
         });
     },
 
     _runBlink(dot, times, intervalMs, onDone) {
+        // Disable CSS transitions so blinks are instant and distinct
+        const savedTransition = dot.style.transition;
+        dot.style.transition = 'none';
         let count = 0;
         const max = times * 2;
         const step = () => {
@@ -128,6 +131,7 @@ const AISBMM = {
                 setTimeout(step, intervalMs);
             } else {
                 dot.style.opacity = '0';
+                dot.style.transition = savedTransition;
                 if (onDone) onDone();
             }
         };
@@ -594,8 +598,8 @@ const AISBMM = {
             return;
         }
 
-        // First time at this difficulty — fetch from Gemini
-        this.requestGeminiQuestionUpdate();
+        // First time at this difficulty — fetch from Gemini immediately (bypass cooldown)
+        this.requestGeminiQuestionUpdate(1, true);
     },
 
     // Shared validation + merge logic used by both Gemini responses and cache restores
@@ -643,9 +647,9 @@ const AISBMM = {
     // GEMINI API INTEGRATION (via Vercel proxy)
     // ========================================
 
-    async requestGeminiQuestionUpdate(attempt = 1) {
+    async requestGeminiQuestionUpdate(attempt = 1, force = false) {
         const now = Date.now();
-        if (now - this.lastAnalysisTime < this.analysisCooldown) {
+        if (!force && now - this.lastAnalysisTime < this.analysisCooldown) {
             return; // Rate limited
         }
         this.lastAnalysisTime = now;
@@ -720,25 +724,145 @@ const AISBMM = {
     },
 
     applyGeminiResponse(text, requestedLevel = this.difficultyLevel) {
+        let newQuestions = null;
+        let usedRepair = false;
+
+        // 1) Try normal extraction + parse
+        const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) || text.match(/```\s*([\s\S]*?)```/) || [null, text];
+        let jsonStr = jsonMatch[1].trim();
+
         try {
-            // Extract JSON from response (handle markdown code blocks)
-            const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) || text.match(/```\s*([\s\S]*?)```/) || [null, text];
-            const jsonStr = jsonMatch[1].trim();
-            const newQuestions = JSON.parse(jsonStr);
-
-            const result = this._applyQuestionSet(newQuestions);
-
-            // Cache the generated questions so we don't hit Gemini again
-            // when the player oscillates between difficulty levels.
-            if (result && result.replaced > 0) {
-                this.generatedQuestions[requestedLevel] = JSON.parse(JSON.stringify(newQuestions));
-            }
-            this._indicatorSuccess();
+            newQuestions = JSON.parse(jsonStr);
         } catch (err) {
-            console.error('[AI-SBMM] Failed to parse Gemini response:', err);
+            console.warn('[AI-SBMM] Initial JSON parse failed, attempting repair...');
+        }
+
+        // 2) Repair truncated JSON — close open strings / objects / arrays
+        if (!newQuestions) {
+            const repaired = this._repairTruncatedJson(jsonStr);
+            if (repaired) {
+                try {
+                    newQuestions = JSON.parse(repaired);
+                    usedRepair = true;
+                    console.log('[AI-SBMM] Repaired truncated JSON successfully');
+                } catch (err2) {
+                    console.warn('[AI-SBMM] JSON repair failed:', err2.message);
+                }
+            }
+        }
+
+        // 3) Last resort: regex-extract every complete entry and rebuild partial board
+        if (!newQuestions) {
+            const extracted = this._extractPartialQuestions(jsonStr);
+            if (extracted && Object.keys(extracted).length > 0) {
+                newQuestions = extracted;
+                usedRepair = true;
+                console.log('[AI-SBMM] Extracted partial questions via regex');
+            }
+        }
+
+        if (!newQuestions) {
+            console.error('[AI-SBMM] Failed to parse Gemini response — all recovery attempts exhausted');
             this.logEvent('Gemini update failed — keeping current board', 'system');
             this._indicatorFail();
+            return;
         }
+
+        const result = this._applyQuestionSet(newQuestions);
+
+        // Cache the generated questions so we don't hit Gemini again
+        // when the player oscillates between difficulty levels.
+        if (result && result.replaced > 0) {
+            this.generatedQuestions[requestedLevel] = JSON.parse(JSON.stringify(newQuestions));
+        }
+
+        if (usedRepair) {
+            this.logEvent('Gemini returned partial data — applied ' + result.replaced + ' recovered clues', 'system');
+        }
+        this._indicatorSuccess();
+    },
+
+    _repairTruncatedJson(str) {
+        if (!str || !str.trim()) return null;
+        let s = str.trim();
+        let inString = false;
+        let escape = false;
+        const stack = [];
+        for (let i = 0; i < s.length; i++) {
+            const ch = s[i];
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (ch === '\\') {
+                escape = true;
+                continue;
+            }
+            if (inString) {
+                if (ch === '"') inString = false;
+                continue;
+            }
+            if (ch === '"') {
+                inString = true;
+                continue;
+            }
+            if (ch === '{' || ch === '[') {
+                stack.push(ch);
+                continue;
+            }
+            if (ch === '}') {
+                if (stack.length && stack[stack.length - 1] === '{') stack.pop();
+                continue;
+            }
+            if (ch === ']') {
+                if (stack.length && stack[stack.length - 1] === '[') stack.pop();
+                continue;
+            }
+        }
+        if (inString) s += '"';
+        while (stack.length) {
+            const opener = stack.pop();
+            s += (opener === '{') ? '}' : ']';
+        }
+        // Strip trailing comma before closure
+        s = s.replace(/,\s*([}\]])/g, '$1');
+        try {
+            JSON.parse(s);
+            return s;
+        } catch (_) {
+            return null;
+        }
+    },
+
+    _extractPartialQuestions(str) {
+        const result = {};
+        const categories = ['People', 'Powers', 'Artifacts', 'Media', 'Teams', 'Places'];
+        const values = ['$200', '$400', '$600', '$800', '$1000'];
+        categories.forEach(c => result[c] = {});
+        // Match complete question/answer objects: {"question":"...","answer":["..."]}
+        const entryRe = /"\$?\d{3}":\s*\{\s*"question"\s*:\s*"([^"]*)"\s*,\s*"answer"\s*:\s*(\[[^\]]*\])\s*\}/g;
+        let m;
+        while ((m = entryRe.exec(str)) !== null) {
+            const val = m[0].match(/^"(\$\d{3})"/);
+            if (!val) continue;
+            const valueKey = val[1];
+            const question = m[1];
+            let answer;
+            try {
+                answer = JSON.parse(m[2]);
+            } catch (_) {
+                continue;
+            }
+            if (!question || !Array.isArray(answer) || answer.length === 0) continue;
+            // Find which category this value belongs to by looking backward in the string
+            const before = str.slice(0, m.index);
+            const catMatch = before.match(/"(People|Powers|Artifacts|Media|Teams|Places)"\s*:\s*\{[^}]*$/);
+            const cat = catMatch ? catMatch[1] : null;
+            if (cat && result[cat] && values.includes(valueKey)) {
+                result[cat][valueKey] = { question, answer };
+            }
+        }
+        return result;
     },
 
     // ========================================
