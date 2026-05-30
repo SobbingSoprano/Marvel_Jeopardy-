@@ -654,8 +654,6 @@ const AISBMM = {
         }
         this.lastAnalysisTime = now;
 
-        // Capture the level we are generating for so a mid-flight difficulty
-        // change doesn't accidentally cache questions under the wrong tier.
         const requestedLevel = this.difficultyLevel;
 
         // Snapshot of the current board questions so Gemini can avoid duplicates
@@ -666,6 +664,35 @@ const AISBMM = {
             } catch (_) { /* non-fatal */ }
         }
 
+        // Split into 2 batches of 3 categories to stay under Vercel's 10s timeout
+        const batches = [
+            ['People', 'Powers', 'Artifacts'],
+            ['Media', 'Teams', 'Places']
+        ];
+
+        let mergedQuestions = {};
+        let anySuccess = false;
+
+        for (const batchCats of batches) {
+            const batchResult = await this._fetchBatch(batchCats, currentQuestions);
+            if (batchResult) {
+                Object.assign(mergedQuestions, batchResult);
+                anySuccess = true;
+            }
+        }
+
+        if (anySuccess) {
+            const result = this._applyQuestionSet(mergedQuestions);
+            if (result && result.replaced > 0) {
+                this.generatedQuestions[requestedLevel] = JSON.parse(JSON.stringify(mergedQuestions));
+            }
+            this._indicatorSuccess();
+        } else {
+            this._indicatorFail();
+        }
+    },
+
+    async _fetchBatch(categories, currentQuestions, attempt = 1) {
         try {
             const response = await fetch('/api/gemini', {
                 method: 'POST',
@@ -673,41 +700,37 @@ const AISBMM = {
                 body: JSON.stringify({
                     difficultyLevel: this.difficultyLevel,
                     metricsSummary: this.getMetricsSummary(),
-                    existingQuestions: currentQuestions
+                    existingQuestions: currentQuestions,
+                    categories: categories
                 })
             });
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
                 console.error(
-                    '[AI-SBMM] Gemini proxy error:', response.status,
-                    '| Gemini status:', errData.status || 'unknown',
-                    '| Message:', errData.error || '',
-                    '| Details:', errData.details || '(none)'
+                    '[AI-SBMM] Batch error (' + categories.join(',') + '):', response.status,
+                    '|', errData.error || ''
                 );
 
-                // Show fail feedback immediately so the user knows something went wrong
-                this._indicatorFail();
-
-                // Retry once on 502/503/504 errors (Vercel proxy or Gemini unavailability)
+                // Retry once on 502/503/504
                 if ((response.status === 502 || response.status === 503 || response.status === 504) && attempt === 1) {
-                    console.log('[AI-SBMM] Retrying question generation after ' + response.status + '...');
-                    this.lastAnalysisTime = 0; // Reset cooldown for retry
+                    console.log('[AI-SBMM] Retrying batch (' + categories.join(',') + ') after ' + response.status + '...');
                     await new Promise(r => setTimeout(r, 3000));
-                    return this.requestGeminiQuestionUpdate(attempt + 1);
+                    return this._fetchBatch(categories, currentQuestions, attempt + 1);
                 }
-
-                // Back off a full cooldown so a broken endpoint isn't hammered
-                this.lastAnalysisTime = Date.now();
-                return;
+                return null;
             }
 
             const data = await response.json();
             const text = data.text || '';
-            this.applyGeminiResponse(text, requestedLevel);
+
+            // Parse the batch JSON
+            const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) || text.match(/```\s*([\s\S]*?)```/) || [null, text];
+            const jsonStr = jsonMatch[1].trim();
+            return JSON.parse(jsonStr);
         } catch (err) {
-            console.error('[AI-SBMM] Gemini request failed:', err);
-            this._indicatorFail();
+            console.error('[AI-SBMM] Batch request failed (' + categories.join(',') + '):', err);
+            return null;
         }
     },
 

@@ -119,12 +119,12 @@ const CATEGORIES = ["People", "Powers", "Artifacts", "Media", "Teams", "Places"]
 const VALUES = ["$200", "$400", "$600", "$800", "$1000"];
 const MODEL = 'gemini-3-flash-preview';
 
-function buildPrompt(difficultyLevel, metricsSummary, existingQuestions) {
+function buildPrompt(difficultyLevel, metricsSummary, existingQuestions, categorySubset = CATEGORIES) {
     // Compact existing-questions block — only question text to save tokens & latency
     let existingBlock = '';
     if (existingQuestions && typeof existingQuestions === 'object') {
         const lines = [];
-        for (const cat of Object.keys(existingQuestions)) {
+        for (const cat of categorySubset) {
             for (const val of Object.keys(existingQuestions[cat] || {})) {
                 const q = existingQuestions[cat][val]?.question;
                 if (q) lines.push(`- ${q}`);
@@ -145,7 +145,7 @@ Difficulty: ${difficultyLevel} — ${diffDesc}
 Player stats:
 ${metricsSummary}
 ${existingBlock}
-Generate a COMPLETE JSON board for ALL categories and values below.
+Generate a COMPLETE JSON board for these categories and values.
 
 Rules:
 - "question": Declarative clue, 12–22 words. NEVER a question. NEVER names the answer or obvious keywords.
@@ -156,7 +156,7 @@ Rules:
 - All clues must be factually accurate Marvel canon.
 - Do NOT reuse any existing question above.
 
-Categories: ${CATEGORIES.join(', ')}
+Categories: ${categorySubset.join(', ')}
 Values: ${VALUES.join(', ')}
 
 Output ONLY raw JSON — no markdown, no commentary.`;
@@ -230,7 +230,7 @@ export default async function handler(req, res) {
         });
     }
 
-    const { type, difficultyLevel, metricsSummary, existingQuestions, pairs } = req.body || {};
+    const { type, difficultyLevel, metricsSummary, existingQuestions, pairs, categories } = req.body || {};
 
     // ── Health check ───────────────────────────────────────────────────────
     if (type === 'health') {
@@ -355,7 +355,7 @@ export default async function handler(req, res) {
         });
     }
 
-    const prompt = buildPrompt(difficultyLevel, metricsSummary, existingQuestions || null);
+    const prompt = buildPrompt(difficultyLevel, metricsSummary, existingQuestions || null, categories || CATEGORIES);
 
     try {
         const geminiRes = await fetch(
