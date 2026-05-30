@@ -453,6 +453,12 @@ const GameState = {
             }
         }
 
+        // Fallback: multi-word answers in Artifacts/Powers/Teams/Places
+        // usually read better with "the" (e.g., "the Infinity Gauntlet")
+        if (!article && category !== 'People' && rest.split(/\s+/).length >= 2) {
+            article = 'the';
+        }
+
         const titleCased = this.toTitleCase(rest);
         if (article) {
             return `${article} ${titleCased}`;

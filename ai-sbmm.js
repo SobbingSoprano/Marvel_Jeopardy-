@@ -64,7 +64,11 @@ const AISBMM = {
     injectSbmmIndicator() {
         if (document.getElementById('sbmm-indicator-wrap')) return;
         const gameContent = document.getElementById('gameContent');
-        if (!gameContent || !gameContent.parentNode) return;
+        if (!gameContent || !gameContent.parentNode) {
+            // Retry after a short delay in case DOM isn't ready yet
+            setTimeout(() => this.injectSbmmIndicator(), 500);
+            return;
+        }
 
         const wrap = document.createElement('div');
         wrap.id = 'sbmm-indicator-wrap';

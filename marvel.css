@@ -2474,18 +2474,18 @@ body.game-page {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto 10px;
+    margin: 0 auto 12px;
     width: fit-content;
-    min-width: 30px;
-    height: 10px;
-    padding: 0 8px;
+    min-width: 36px;
+    height: 14px;
+    padding: 0 10px;
     background: #000;
     border-radius: 20px;
     opacity: 0;
     transition: opacity 0.4s ease;
     pointer-events: none;
     position: relative;
-    z-index: 10;
+    z-index: 100;
 }
 
 .sbmm-indicator-wrap.visible {
@@ -2493,24 +2493,30 @@ body.game-page {
 }
 
 .sbmm-indicator-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #ffaa00;
     opacity: 0;
     transition: background 0.2s ease;
+    box-shadow: 0 0 6px rgba(255, 170, 0, 0.6);
+}
+
+.sbmm-indicator-dot[data-state="fail"] {
+    box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
 }
 
 @media (max-width: 768px) {
     .sbmm-indicator-wrap {
-        min-width: 24px;
-        height: 8px;
-        padding: 0 6px;
-        margin-bottom: 8px;
+        min-width: 28px;
+        height: 10px;
+        padding: 0 8px;
+        margin-bottom: 10px;
     }
     .sbmm-indicator-dot {
-        width: 4px;
-        height: 4px;
+        width: 6px;
+        height: 6px;
+        box-shadow: 0 0 4px rgba(255, 170, 0, 0.6);
     }
 }
 
