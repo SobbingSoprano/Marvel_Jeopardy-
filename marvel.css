@@ -660,7 +660,7 @@ body {
     letter-spacing: 3px;
     font-family: 'Bangers', system-ui;
     animation: marvelColorPulse 120s infinite;
-    transition: color 0.3s ease-in-out;
+
 }
 
 @keyframes marvelColorPulse {
@@ -757,7 +757,7 @@ body {
     }
 
     100% {
-        color: white;
+        color: red;
     }
 }
 
