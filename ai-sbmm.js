@@ -57,6 +57,8 @@ const AISBMM = {
         }
         this.updateToggleButton();
         this.injectSbmmIndicator();
+        // Delayed second call ensures indicator is visible after preloader settles
+        setTimeout(() => this._updateIndicatorVisibility(), 800);
         this.checkGeminiHealth();
     },
 
@@ -75,24 +77,40 @@ const AISBMM = {
         wrap.innerHTML = '<div class="sbmm-indicator-dot" id="sbmm-indicator-dot"></div>';
         gameContent.parentNode.insertBefore(wrap, gameContent);
         this._updateIndicatorVisibility();
+        console.log('[AI-SBMM] Indicator injected');
     },
 
     _updateIndicatorVisibility() {
         const wrap = document.getElementById('sbmm-indicator-wrap');
         if (!wrap) return;
         wrap.classList.toggle('visible', this.enabled);
+        console.log('[AI-SBMM] Indicator visibility:', this.enabled, '→ wrap classes:', wrap.className);
     },
 
     _indicatorSuccess() {
         const dot = document.getElementById('sbmm-indicator-dot');
-        if (!dot) return;
+        const wrap = document.getElementById('sbmm-indicator-wrap');
+        if (!dot || !wrap) {
+            console.log('[AI-SBMM] Indicator: success skipped — element not found');
+            return;
+        }
+        console.log('[AI-SBMM] Indicator: success blink');
+        // Ensure container is visible before blinking
+        wrap.classList.add('visible');
         dot.style.background = '#ffaa00';
         this._runBlink(dot, 3, 400);
     },
 
     _indicatorFail() {
         const dot = document.getElementById('sbmm-indicator-dot');
-        if (!dot) return;
+        const wrap = document.getElementById('sbmm-indicator-wrap');
+        if (!dot || !wrap) {
+            console.log('[AI-SBMM] Indicator: fail skipped — element not found');
+            return;
+        }
+        console.log('[AI-SBMM] Indicator: fail blink');
+        // Ensure container is visible before blinking
+        wrap.classList.add('visible');
         dot.style.background = '#ffaa00';
         this._runBlink(dot, 1, 400, () => {
             dot.style.background = '#ff0000';
@@ -664,11 +682,11 @@ const AISBMM = {
                     '| Details:', errData.details || '(none)'
                 );
 
-                // Retry once on 504 Gateway Timeout (Vercel serverless timeout)
-                if (response.status === 504 && attempt === 1) {
-                    console.log('[AI-SBMM] Retrying question generation after 504 timeout...');
+                // Retry once on 502/503/504 errors (Vercel proxy or Gemini unavailability)
+                if ((response.status === 502 || response.status === 503 || response.status === 504) && attempt === 1) {
+                    console.log('[AI-SBMM] Retrying question generation after ' + response.status + '...');
                     this.lastAnalysisTime = 0; // Reset cooldown for retry
-                    await new Promise(r => setTimeout(r, 2000));
+                    await new Promise(r => setTimeout(r, 3000));
                     return this.requestGeminiQuestionUpdate(attempt + 1);
                 }
 
