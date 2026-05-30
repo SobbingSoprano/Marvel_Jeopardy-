@@ -283,7 +283,8 @@
         function getCorrectAnswerFormatted(category, value) {
             const prefix = getSuggestedPrefix(category, value);
             const answer = allQuestions[category][value].answer[0];
-            const formattedAnswer = answer.charAt(0).toUpperCase() + answer.slice(1);
+            const allAnswers = allQuestions[category][value].answer;
+            const formattedAnswer = GameState.formatAnswerGrammar(answer, category, allAnswers);
             return `${prefix} ${formattedAnswer}?`;
         }
 

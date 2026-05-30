@@ -26,8 +26,8 @@ const AISBMM = {
         easyStreak: 3,        // Drop difficulty after 3 wrong in a row
         skillScoreUp: 10,     // Raise difficulty when skillScore hits this (see scoreAnswer)
         skillScoreDown: -6,   // Drop difficulty when skillScore hits this
-        fastAnswerMs: 5000,   // "Fast" answer — bonus multiplier applies
-        slowAnswerMs: 18000,  // "Slow" answer — no score awarded for correct answers
+        fastAnswerMs: 6000,   // "Fast" answer — bonus multiplier applies
+        slowAnswerMs: 21600,  // "Slow" answer — no score awarded for correct answers
     },
 
     // Point-value → base skill weight.  Higher-value questions count more.

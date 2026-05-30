@@ -418,12 +418,75 @@ const GameState = {
         return allQuestions[category][value].answer[0];
     },
 
+    // Grammar-aware answer formatter for display in correct-answer modals
+    formatAnswerGrammar(answer, category, allAnswers = []) {
+        let text = answer.trim();
+        if (!text) return text;
+
+        const lower = text.toLowerCase();
+
+        // Special-case: all-lowercase acronym with periods (e.g., s.h.i.e.l.d.)
+        if (/^[a-z](\.[a-z])+\.?$/.test(text)) {
+            return text.toUpperCase().replace(/\.$/, '') + (text.endsWith('.') ? '.' : '');
+        }
+        if (lower === 'x-men' || lower === 'x men' || lower === 'xmen') {
+            return 'X-Men';
+        }
+
+        // Infer article from alternate answers if the canonical one lacks one
+        const articlePattern = /^(the|a|an)\s+(.+)$/i;
+        const hasArticle = articlePattern.test(text);
+        let article = '';
+        let rest = text;
+
+        if (hasArticle) {
+            const match = text.match(articlePattern);
+            article = match[1].toLowerCase();
+            rest = match[2];
+        } else if (Array.isArray(allAnswers)) {
+            for (const alt of allAnswers) {
+                const altMatch = alt.trim().match(articlePattern);
+                if (altMatch) {
+                    article = altMatch[1].toLowerCase();
+                    break;
+                }
+            }
+        }
+
+        const titleCased = this.toTitleCase(rest);
+        if (article) {
+            return `${article} ${titleCased}`;
+        }
+        return titleCased;
+    },
+
+    toTitleCase(str) {
+        const smallWords = ['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor',
+            'on', 'at', 'to', 'from', 'by', 'in', 'of', 'with', 'as'];
+        return str.split(/\s+/).map((word, i) => {
+            if (word.includes('-')) {
+                return word.split('-').map((part, j) => {
+                    const isFirst = (i === 0 && j === 0);
+                    const isSmall = smallWords.includes(part.toLowerCase());
+                    if (isFirst || !isSmall) {
+                        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+                    }
+                    return part.toLowerCase();
+                }).join('-');
+            }
+            if (i === 0 || !smallWords.includes(word.toLowerCase())) {
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }
+            return word.toLowerCase();
+        }).join(' ');
+    },
+
     // Get correct answer with suggested Jeopardy phrasing
     getCorrectAnswerFormatted(category, value) {
         const prefix = this.getSuggestedPrefix(category, value);
         const answer = this.getCorrectAnswer(category, value);
-        // Capitalize first letter of answer
-        const formattedAnswer = answer.charAt(0).toUpperCase() + answer.slice(1);
+        const allAnswers = allQuestions[category]?.[value]?.answer || [];
+        const formattedAnswer = this.formatAnswerGrammar(answer, category, allAnswers);
         return `${prefix} ${formattedAnswer}?`;
     },
 

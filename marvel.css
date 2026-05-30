@@ -160,7 +160,6 @@ body {
     height: 100%;
     object-fit: cover;
     object-position: center;
-    transition: opacity 1s ease-in-out;
 }
 
 .video-background video:nth-child(1) {
@@ -200,7 +199,7 @@ body {
         opacity: 1;
     }
 
-    10.5% {
+    11.25% {
         opacity: 1;
     }
 
@@ -208,8 +207,12 @@ body {
         opacity: 0;
     }
 
-    100% {
+    98.75% {
         opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
     }
 }
 
@@ -218,19 +221,19 @@ body {
         opacity: 0;
     }
 
-    12.5% {
+    11.25% {
         opacity: 0;
     }
 
-    13.5% {
+    12.5% {
         opacity: 1;
     }
 
-    23.5% {
+    23.75% {
         opacity: 1;
     }
 
-    24.5% {
+    25% {
         opacity: 0;
     }
 
@@ -244,15 +247,15 @@ body {
         opacity: 0;
     }
 
-    24.5% {
+    23.75% {
         opacity: 0;
     }
 
-    25.5% {
+    25% {
         opacity: 1;
     }
 
-    36.5% {
+    36.25% {
         opacity: 1;
     }
 
@@ -270,19 +273,19 @@ body {
         opacity: 0;
     }
 
-    37.5% {
+    36.25% {
         opacity: 0;
     }
 
-    38.5% {
+    37.5% {
         opacity: 1;
     }
 
-    49.5% {
+    48.75% {
         opacity: 1;
     }
 
-    50.5% {
+    50% {
         opacity: 0;
     }
 
@@ -296,15 +299,15 @@ body {
         opacity: 0;
     }
 
-    50.5% {
+    48.75% {
         opacity: 0;
     }
 
-    51.5% {
+    50% {
         opacity: 1;
     }
 
-    61.5% {
+    61.25% {
         opacity: 1;
     }
 
@@ -322,19 +325,19 @@ body {
         opacity: 0;
     }
 
-    62.5% {
+    61.25% {
         opacity: 0;
     }
 
-    63.5% {
+    62.5% {
         opacity: 1;
     }
 
-    74.5% {
+    73.75% {
         opacity: 1;
     }
 
-    75.5% {
+    75% {
         opacity: 0;
     }
 
@@ -348,15 +351,15 @@ body {
         opacity: 0;
     }
 
-    75.5% {
+    73.75% {
         opacity: 0;
     }
 
-    76.5% {
+    75% {
         opacity: 1;
     }
 
-    86.5% {
+    86.25% {
         opacity: 1;
     }
 
@@ -374,15 +377,15 @@ body {
         opacity: 0;
     }
 
-    87.5% {
+    86.25% {
         opacity: 0;
     }
 
-    88.5% {
+    87.5% {
         opacity: 1;
     }
 
-    99% {
+    98.75% {
         opacity: 1;
     }
 

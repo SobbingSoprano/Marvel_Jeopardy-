@@ -32,7 +32,7 @@ const AudioManager = {
                 audio.load();
                 this.preloadedAudio[name] = audio;
             });
-        }, 6000);
+        }, 2000);
     },
     
     // Initialize audio system
@@ -411,8 +411,19 @@ const SoundEffects = {
         const audio = this.sounds[name];
         if (!audio) return;
 
+        // Skip if sound hasn't buffered enough to play (prevents hang on first load)
+        if (audio.readyState < 2) return;
+
         // Ensure AudioContext is running (browsers suspend it on reload)
         this.resumeAudioContext();
+
+        // Limit concurrent clones to prevent audio stacking
+        if (!this._activeCounts) this._activeCounts = {};
+        this._activeCounts[name] = (this._activeCounts[name] || 0) + 1;
+        if (this._activeCounts[name] > 3) {
+            this._activeCounts[name]--;
+            return;
+        }
 
         // Clone to allow overlapping playback and avoid cutting off
         const clone = audio.cloneNode();
@@ -439,9 +450,23 @@ const SoundEffects = {
             }
         }
 
+        const cleanup = () => {
+            clone.onended = null;
+            clone.src = '';
+            clone.remove();
+            if (this._activeCounts) {
+                this._activeCounts[name] = Math.max(0, (this._activeCounts[name] || 1) - 1);
+            }
+        };
+        clone.onended = cleanup;
+
         const promise = clone.play();
         if (promise !== undefined) {
-            promise.catch(() => {});
+            promise.then(() => {
+                setTimeout(cleanup, 5000);
+            }).catch(() => {
+                cleanup();
+            });
         }
     },
 
@@ -524,6 +549,12 @@ const HoverSound = {
     init() {
         this.audio = document.getElementById('hover-sfx');
         if (!this.audio) return;
+
+        // Force preload so first hover isn't delayed / stacked
+        if (this.audio.preload === 'none') {
+            this.audio.preload = 'auto';
+        }
+        this.audio.load();
 
         // Attach to all interactive elements (excluding player-option cards)
         const selectors = 'button:not(.player-option), .value-cell, .buzzer-box, .submit-btn, .cancel-btn, .start-btn, a:not([href^="http"]):not(.player-option)';

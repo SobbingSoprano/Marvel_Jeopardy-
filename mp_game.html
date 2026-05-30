@@ -287,7 +287,9 @@
         function getCorrectAnswerFormatted(category, value) {
             const prefix = getSuggestedPrefix(category);
             const ans = allQuestions[category][value].answer[0];
-            return `${prefix} ${ans.charAt(0).toUpperCase()}${ans.slice(1)}?`;
+            const allAnswers = allQuestions[category][value].answer;
+            const formattedAnswer = GameState.formatAnswerGrammar(ans, category, allAnswers);
+            return `${prefix} ${formattedAnswer}?`;
         }
 
         function checkAnswerFlexible(category, value, userAnswer) {
