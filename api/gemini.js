@@ -117,7 +117,7 @@ function getClientIP(req) {
 // Hardcoded game structure (mirrors questions.js)
 const CATEGORIES = ["People", "Powers", "Artifacts", "Media", "Teams", "Places"];
 const VALUES = ["$200", "$400", "$600", "$800", "$1000"];
-const MODEL = 'gemini-3-flash-preview';
+const MODEL = 'gemini-3.5-flash';
 
 function buildPrompt(difficultyLevel, metricsSummary, existingQuestions, categorySubset = CATEGORIES) {
     // Compact existing-questions block — only question text to save tokens & latency
