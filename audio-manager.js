@@ -7,12 +7,16 @@
 
 const AudioManager = {
     currentAudio: null,
+    _nextAudio: null,       // Secondary buffer for seamless loop crossfade
     currentTrack: null,
     fadeTime: 500, // ms for fade transitions
     volume: 0.7,   // default volume
     preloadedAudio: {}, // Cache for preloaded audio
     _pendingResume: false,
     _pausedByVisibility: false,
+    _loopCheckInterval: null,
+    _isCrossfading: false,
+    _crossfadeDuration: 2000, // ms for loop boundary crossfade
     
     tracks: {
         'menu': 'Assets/Sounds/krakoa-menu-theme.mp3',
@@ -40,25 +44,19 @@ const AudioManager = {
         // Preload all tracks first
         this.preloadAll();
         
-        // Create main audio element if it doesn't exist
-        if (!document.getElementById('audioManager')) {
-            const audio = document.createElement('audio');
-            audio.id = 'audioManager';
-            audio.loop = true;
-            audio.volume = 0;
-            audio.preload = 'auto';
-            document.body.appendChild(audio);
-        }
-        this.currentAudio = document.getElementById('audioManager');
+        // Create dual audio elements for seamless loop crossfading
+        this._ensureAudioElements();
         
         // Restore state from a previous session (reload / bfcache)
         const state = this.restoreState();
         if (state && state.currentTrack) {
             this.currentTrack = state.currentTrack;
             this.currentAudio.muted = !!state.muted;
+            if (this._nextAudio) this._nextAudio.muted = !!state.muted;
             if (!this.currentAudio.src) {
-                this.currentAudio.src = this.tracks[state.currentTrack] || state.currentTrack;
-                this.currentAudio.loop = true;
+                const src = this.tracks[state.currentTrack] || state.currentTrack;
+                this.currentAudio.src = src;
+                if (this._nextAudio) this._nextAudio.src = src;
             }
             if (state.wasPlaying) {
                 this.currentAudio.volume = 0;
@@ -71,6 +69,27 @@ const AudioManager = {
         this.setupLifecycleHandlers();
         
         return this;
+    },
+    
+    _ensureAudioElements() {
+        // Primary buffer
+        if (!document.getElementById('audioManager')) {
+            const audioA = document.createElement('audio');
+            audioA.id = 'audioManager';
+            audioA.volume = 0;
+            audioA.preload = 'auto';
+            document.body.appendChild(audioA);
+        }
+        // Secondary buffer (for loop crossfade)
+        if (!document.getElementById('audioManagerB')) {
+            const audioB = document.createElement('audio');
+            audioB.id = 'audioManagerB';
+            audioB.volume = 0;
+            audioB.preload = 'auto';
+            document.body.appendChild(audioB);
+        }
+        this.currentAudio = document.getElementById('audioManager');
+        this._nextAudio = document.getElementById('audioManagerB');
     },
     
     // Setup autoplay handler for browser restrictions
@@ -154,25 +173,25 @@ const AudioManager = {
                 this.saveState();
                 if (!this.currentAudio.paused) {
                     this.currentAudio.pause();
+                    if (this._nextAudio && !this._nextAudio.paused) this._nextAudio.pause();
                     this._pausedByVisibility = true;
                 }
             } else if (this._pausedByVisibility) {
                 this._pausedByVisibility = false;
                 this.currentAudio.play().catch(() => {});
+                if (this._isCrossfading && this._nextAudio) {
+                    this._nextAudio.play().catch(() => {});
+                }
             }
         });
     },
 
     _rebuildAudioElement() {
-        const old = document.getElementById('audioManager');
-        if (old) old.remove();
-        const audio = document.createElement('audio');
-        audio.id = 'audioManager';
-        audio.loop = true;
-        audio.volume = 0;
-        audio.preload = 'auto';
-        document.body.appendChild(audio);
-        this.currentAudio = audio;
+        const oldA = document.getElementById('audioManager');
+        if (oldA) oldA.remove();
+        const oldB = document.getElementById('audioManagerB');
+        if (oldB) oldB.remove();
+        this._ensureAudioElements();
     },
     
     // Play a track with fade in
@@ -204,8 +223,17 @@ const AudioManager = {
     
     // Start playing a new track
     startNewTrack(url, trackName, loop, fadeIn, callback) {
+        this._clearLoopCheck();
+        this._isCrossfading = false;
+        
+        // Load into both buffers (primary plays now, secondary ready for loop)
         this.currentAudio.src = url;
-        this.currentAudio.loop = loop;
+        this.currentAudio.loop = false; // We handle looping manually for crossfade
+        if (this._nextAudio) {
+            this._nextAudio.src = url;
+            this._nextAudio.loop = false;
+            this._nextAudio.volume = 0;
+        }
         this.currentTrack = trackName;
         
         if (fadeIn) {
@@ -218,6 +246,9 @@ const AudioManager = {
         
         if (playPromise !== undefined) {
             playPromise.then(() => {
+                if (loop) {
+                    this._setupLoopCrossfade();
+                }
                 if (fadeIn) {
                     this.fadeIn().then(callback);
                 } else {
@@ -229,8 +260,83 @@ const AudioManager = {
                 callback();
             });
         } else {
+            if (loop) this._setupLoopCrossfade();
             callback();
         }
+    },
+    
+    // Monitor playback and trigger crossfade before loop boundary
+    _setupLoopCrossfade() {
+        this._clearLoopCheck();
+        if (!this.currentAudio || this.currentAudio.paused) return;
+        
+        const check = () => {
+            if (this._isCrossfading || !this.currentAudio || this.currentAudio.paused) return;
+            
+            const duration = this.currentAudio.duration;
+            const currentTime = this.currentAudio.currentTime;
+            
+            if (duration && !isNaN(duration) && currentTime >= duration - (this._crossfadeDuration / 1000)) {
+                this._performLoopCrossfade();
+            }
+        };
+        
+        this._loopCheckInterval = setInterval(check, 50);
+    },
+    
+    _clearLoopCheck() {
+        if (this._loopCheckInterval) {
+            clearInterval(this._loopCheckInterval);
+            this._loopCheckInterval = null;
+        }
+    },
+    
+    _performLoopCrossfade() {
+        if (this._isCrossfading || !this._nextAudio) return;
+        this._isCrossfading = true;
+        
+        const outgoing = this.currentAudio;
+        const incoming = this._nextAudio;
+        
+        // Prepare incoming buffer
+        incoming.currentTime = 0;
+        incoming.muted = outgoing.muted;
+        
+        // Start incoming playback silently
+        const playPromise = incoming.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+        }
+        
+        // Crossfade from outgoing to incoming
+        const duration = this._crossfadeDuration;
+        const steps = 20;
+        const stepTime = duration / steps;
+        const targetVolume = this.volume;
+        let step = 0;
+        
+        const interval = setInterval(() => {
+            step++;
+            const progress = step / steps;
+            
+            outgoing.volume = Math.max(0, targetVolume * (1 - progress));
+            incoming.volume = Math.min(targetVolume, targetVolume * progress);
+            
+            if (step >= steps) {
+                clearInterval(interval);
+                outgoing.pause();
+                outgoing.volume = 0;
+                incoming.volume = targetVolume;
+                
+                // Swap buffers: incoming becomes the new current
+                this.currentAudio = incoming;
+                this._nextAudio = outgoing;
+                this._isCrossfading = false;
+                
+                // Continue monitoring the new current audio
+                this._setupLoopCrossfade();
+            }
+        }, stepTime);
     },
     
     // Fade in current audio
@@ -312,11 +418,18 @@ const AudioManager = {
     
     // Stop audio completely
     stop() {
+        this._clearLoopCheck();
+        this._isCrossfading = false;
         return this.fadeOut().then(() => {
             if (this.currentAudio) {
+                this.currentAudio.pause();
                 this.currentAudio.src = '';
-                this.currentTrack = null;
             }
+            if (this._nextAudio) {
+                this._nextAudio.pause();
+                this._nextAudio.src = '';
+            }
+            this.currentTrack = null;
             try { sessionStorage.removeItem('mj_audio_state'); } catch (_) {}
         });
     },
@@ -327,24 +440,26 @@ const AudioManager = {
         if (this.currentAudio && !this.currentAudio.paused) {
             this.currentAudio.volume = this.volume;
         }
+        if (this._nextAudio && !this._nextAudio.paused) {
+            this._nextAudio.volume = Math.min(this.volume, this._nextAudio.volume);
+        }
     },
     
     // Mute/unmute
     mute() {
-        if (this.currentAudio) {
-            this.currentAudio.muted = true;
-        }
+        if (this.currentAudio) this.currentAudio.muted = true;
+        if (this._nextAudio) this._nextAudio.muted = true;
     },
     
     unmute() {
-        if (this.currentAudio) {
-            this.currentAudio.muted = false;
-        }
+        if (this.currentAudio) this.currentAudio.muted = false;
+        if (this._nextAudio) this._nextAudio.muted = false;
     },
     
     // Check if audio is playing
     isPlaying() {
-        return this.currentAudio && !this.currentAudio.paused;
+        return (this.currentAudio && !this.currentAudio.paused) ||
+               (this._nextAudio && !this._nextAudio.paused);
     },
     
     // Get current track name

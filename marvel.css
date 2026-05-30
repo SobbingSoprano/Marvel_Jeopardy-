@@ -160,6 +160,7 @@ body {
     height: 100%;
     object-fit: cover;
     object-position: center;
+    transition: opacity 1s ease-in-out;
 }
 
 .video-background video:nth-child(1) {
@@ -196,10 +197,14 @@ body {
 
 @keyframes fadeInOut1 {
     0% {
+        opacity: 0;
+    }
+
+    1% {
         opacity: 1;
     }
 
-    11.25% {
+    10.5% {
         opacity: 1;
     }
 
@@ -207,12 +212,8 @@ body {
         opacity: 0;
     }
 
-    98.75% {
-        opacity: 0;
-    }
-
     100% {
-        opacity: 1;
+        opacity: 0;
     }
 }
 
@@ -221,19 +222,19 @@ body {
         opacity: 0;
     }
 
-    11.25% {
+    12.5% {
         opacity: 0;
     }
 
-    12.5% {
+    13.5% {
         opacity: 1;
     }
 
-    23.75% {
+    23.5% {
         opacity: 1;
     }
 
-    25% {
+    24.5% {
         opacity: 0;
     }
 
@@ -247,15 +248,15 @@ body {
         opacity: 0;
     }
 
-    23.75% {
+    24.5% {
         opacity: 0;
     }
 
-    25% {
+    25.5% {
         opacity: 1;
     }
 
-    36.25% {
+    36.5% {
         opacity: 1;
     }
 
@@ -273,19 +274,19 @@ body {
         opacity: 0;
     }
 
-    36.25% {
+    37.5% {
         opacity: 0;
     }
 
-    37.5% {
+    38.5% {
         opacity: 1;
     }
 
-    48.75% {
+    49.5% {
         opacity: 1;
     }
 
-    50% {
+    50.5% {
         opacity: 0;
     }
 
@@ -299,15 +300,15 @@ body {
         opacity: 0;
     }
 
-    48.75% {
+    50.5% {
         opacity: 0;
     }
 
-    50% {
+    51.5% {
         opacity: 1;
     }
 
-    61.25% {
+    61.5% {
         opacity: 1;
     }
 
@@ -325,19 +326,19 @@ body {
         opacity: 0;
     }
 
-    61.25% {
+    62.5% {
         opacity: 0;
     }
 
-    62.5% {
+    63.5% {
         opacity: 1;
     }
 
-    73.75% {
+    74.5% {
         opacity: 1;
     }
 
-    75% {
+    75.5% {
         opacity: 0;
     }
 
@@ -351,15 +352,15 @@ body {
         opacity: 0;
     }
 
-    73.75% {
+    75.5% {
         opacity: 0;
     }
 
-    75% {
+    76.5% {
         opacity: 1;
     }
 
-    86.25% {
+    86.5% {
         opacity: 1;
     }
 
@@ -377,15 +378,15 @@ body {
         opacity: 0;
     }
 
-    86.25% {
+    87.5% {
         opacity: 0;
     }
 
-    87.5% {
+    88.5% {
         opacity: 1;
     }
 
-    98.75% {
+    99% {
         opacity: 1;
     }
 
