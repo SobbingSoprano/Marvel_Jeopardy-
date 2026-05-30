@@ -72,10 +72,9 @@ const AISBMM = {
         const wrap = document.createElement('div');
         wrap.id = 'sbmm-indicator-wrap';
         wrap.className = 'sbmm-indicator-wrap';
-        wrap.innerHTML = '<span class="sbmm-indicator-label">AI</span><div class="sbmm-indicator-dot" id="sbmm-indicator-dot"></div>';
+        wrap.innerHTML = '<div class="sbmm-indicator-dot" id="sbmm-indicator-dot"></div>';
         gameContent.parentNode.insertBefore(wrap, gameContent);
         this._updateIndicatorVisibility();
-        console.log('[AI-SBMM] Indicator injected above game grid');
     },
 
     _updateIndicatorVisibility() {
@@ -86,24 +85,18 @@ const AISBMM = {
 
     _indicatorSuccess() {
         const dot = document.getElementById('sbmm-indicator-dot');
-        const wrap = document.getElementById('sbmm-indicator-wrap');
-        if (!dot || !wrap) return;
-        console.log('[AI-SBMM] Indicator: success blink');
+        if (!dot) return;
         dot.style.background = '#ffaa00';
-        wrap.classList.add('active');
-        this._runBlink(dot, 3, 400, () => wrap.classList.remove('active'));
+        this._runBlink(dot, 3, 400);
     },
 
     _indicatorFail() {
         const dot = document.getElementById('sbmm-indicator-dot');
-        const wrap = document.getElementById('sbmm-indicator-wrap');
-        if (!dot || !wrap) return;
-        console.log('[AI-SBMM] Indicator: fail blink');
+        if (!dot) return;
         dot.style.background = '#ffaa00';
-        wrap.classList.add('active');
         this._runBlink(dot, 1, 400, () => {
             dot.style.background = '#ff0000';
-            this._runBlink(dot, 2, 400, () => wrap.classList.remove('active'));
+            this._runBlink(dot, 2, 400);
         });
     },
 

@@ -2474,12 +2474,11 @@ body.game-page {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 5px;
     margin: 0 auto 12px;
     width: fit-content;
-    min-width: 50px;
-    height: 18px;
-    padding: 0 10px;
+    min-width: 30px;
+    height: 10px;
+    padding: 0 8px;
     background: #000;
     border-radius: 20px;
     opacity: 0;
@@ -2487,50 +2486,31 @@ body.game-page {
     pointer-events: none;
     position: relative;
     z-index: 100;
-    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .sbmm-indicator-wrap.visible {
     opacity: 1;
 }
 
-.sbmm-indicator-wrap.active {
-    border-color: rgba(255, 170, 0, 0.4);
-}
-
-.sbmm-indicator-label {
-    font-family: 'Bungee', cursive;
-    font-size: 8px;
-    color: rgba(255, 255, 255, 0.5);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    line-height: 1;
-}
-
 .sbmm-indicator-dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: #ffaa00;
     opacity: 0;
     transition: background 0.2s ease;
-    box-shadow: 0 0 8px rgba(255, 170, 0, 0.8);
 }
 
 @media (max-width: 768px) {
     .sbmm-indicator-wrap {
-        min-width: 42px;
-        height: 14px;
-        padding: 0 8px;
+        min-width: 24px;
+        height: 8px;
+        padding: 0 6px;
         margin-bottom: 10px;
     }
-    .sbmm-indicator-label {
-        font-size: 7px;
-    }
     .sbmm-indicator-dot {
-        width: 6px;
-        height: 6px;
-        box-shadow: 0 0 6px rgba(255, 170, 0, 0.8);
+        width: 4px;
+        height: 4px;
     }
 }
 
