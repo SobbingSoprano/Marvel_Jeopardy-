@@ -722,12 +722,16 @@ const AISBMM = {
             }
 
             const data = await response.json();
-            const text = data.text || '';
 
-            // Parse the batch JSON
-            const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) || text.match(/```\s*([\s\S]*?)```/) || [null, text];
-            const jsonStr = jsonMatch[1].trim();
-            return JSON.parse(jsonStr);
+            // NEW: Use server-parsed questions when available
+            if (data.questions && typeof data.questions === 'object') {
+                return data.questions;
+            }
+
+            // FALLBACK: Client-side parsing with full recovery chain
+            const text = data.text || '';
+            const parsed = this.parseGeminiResponseText(text);
+            return parsed ? parsed.questions : null;
         } catch (err) {
             console.error('[AI-SBMM] Batch request failed (' + categories.join(',') + '):', err);
             return null;
@@ -746,7 +750,11 @@ const AISBMM = {
         return lines.join('\n') || 'No data yet.';
     },
 
-    applyGeminiResponse(text, requestedLevel = this.difficultyLevel) {
+    /**
+     * Extract a question board object from raw Gemini text.
+     * Returns { questions, usedRepair } or null if all recovery fails.
+     */
+    parseGeminiResponseText(text) {
         let newQuestions = null;
         let usedRepair = false;
 
@@ -784,22 +792,28 @@ const AISBMM = {
             }
         }
 
-        if (!newQuestions) {
+        if (!newQuestions) return null;
+        return { questions: newQuestions, usedRepair };
+    },
+
+    applyGeminiResponse(text, requestedLevel = this.difficultyLevel) {
+        const parsed = this.parseGeminiResponseText(text);
+        if (!parsed) {
             console.error('[AI-SBMM] Failed to parse Gemini response — all recovery attempts exhausted');
             this.logEvent('Gemini update failed — keeping current board', 'system');
             this._indicatorFail();
             return;
         }
 
-        const result = this._applyQuestionSet(newQuestions);
+        const result = this._applyQuestionSet(parsed.questions);
 
         // Cache the generated questions so we don't hit Gemini again
         // when the player oscillates between difficulty levels.
         if (result && result.replaced > 0) {
-            this.generatedQuestions[requestedLevel] = JSON.parse(JSON.stringify(newQuestions));
+            this.generatedQuestions[requestedLevel] = JSON.parse(JSON.stringify(parsed.questions));
         }
 
-        if (usedRepair) {
+        if (parsed.usedRepair) {
             this.logEvent('Gemini returned partial data — applied ' + result.replaced + ' recovered clues', 'system');
         }
         this._indicatorSuccess();

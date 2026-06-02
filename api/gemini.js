@@ -184,6 +184,93 @@ Word pairs to score:
 ${pairList}`.trim();
 }
 
+// ── JSON helpers ─────────────────────────────────────────────────────────────
+
+/** Build a Gemini response schema for the requested categories and values */
+function buildResponseSchema(categorySubset, values) {
+    const properties = {};
+    for (const cat of categorySubset) {
+        const valProps = {};
+        for (const val of values) {
+            valProps[val] = {
+                type: 'OBJECT',
+                properties: {
+                    question: { type: 'STRING' },
+                    answer:   { type: 'ARRAY', items: { type: 'STRING' } }
+                },
+                required: ['question', 'answer']
+            };
+        }
+        properties[cat] = {
+            type: 'OBJECT',
+            properties: valProps,
+            required: values
+        };
+    }
+    return {
+        type: 'OBJECT',
+        properties,
+        required: categorySubset
+    };
+}
+
+/** Extract a JSON object from Gemini text using multiple fallback strategies */
+function extractJson(text) {
+    if (!text) return null;
+    const trimmed = text.trim();
+
+    // 1. Direct parse
+    try { return JSON.parse(trimmed); } catch (_) {}
+
+    // 2. Markdown code block
+    const codeMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeMatch) {
+        try { return JSON.parse(codeMatch[1].trim()); } catch (_) {}
+    }
+
+    // 3. First '{' to last '}'
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace  = trimmed.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        const candidate = trimmed.slice(firstBrace, lastBrace + 1);
+        try { return JSON.parse(candidate); } catch (_) {}
+
+        // 4. Repair truncated JSON
+        const repaired = repairTruncatedJson(candidate);
+        if (repaired) {
+            try { return JSON.parse(repaired); } catch (_) {}
+        }
+    }
+
+    return null;
+}
+
+/** Repair truncated JSON by closing open strings / objects / arrays */
+function repairTruncatedJson(str) {
+    if (!str || !str.trim()) return null;
+    let s = str.trim();
+    let inString = false;
+    let escape = false;
+    const stack = [];
+    for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (inString) { if (ch === '"') inString = false; continue; }
+        if (ch === '"') { inString = true; continue; }
+        if (ch === '{' || ch === '[') { stack.push(ch); continue; }
+        if (ch === '}') { if (stack.length && stack[stack.length - 1] === '{') stack.pop(); continue; }
+        if (ch === ']') { if (stack.length && stack[stack.length - 1] === '[') stack.pop(); continue; }
+    }
+    if (inString) s += '"';
+    while (stack.length) {
+        const opener = stack.pop();
+        s += (opener === '{') ? '}' : ']';
+    }
+    s = s.replace(/,\s*([}\]])/g, '$1');
+    try { JSON.parse(s); return s; } catch (_) { return null; }
+}
+
 export default async function handler(req, res) {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -234,11 +321,45 @@ export default async function handler(req, res) {
 
     // ── Health check ───────────────────────────────────────────────────────
     if (type === 'health') {
-        return res.status(200).json({
-            status: 'ok',
-            model: MODEL,
-            ready: !!apiKey
-        });
+        try {
+            const testRes = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: 'Reply with exactly {"status":"ok"}' }] }],
+                        generationConfig: {
+                            temperature: 0,
+                            responseMimeType: 'application/json',
+                            responseSchema: {
+                                type: 'OBJECT',
+                                properties: { status: { type: 'STRING' } },
+                                required: ['status']
+                            }
+                        }
+                    })
+                }
+            );
+            const testData = await testRes.json();
+            const testText = testData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const testParsed = extractJson(testText);
+            const trulyReady = testRes.ok && testParsed?.status === 'ok';
+            return res.status(200).json({
+                status: trulyReady ? 'ok' : 'degraded',
+                model: MODEL,
+                ready: trulyReady,
+                ...(trulyReady ? {} : { error: 'Gemini API returned unexpected response' })
+            });
+        } catch (err) {
+            console.error('[Gemini Proxy] Health check failed:', err);
+            return res.status(200).json({
+                status: 'degraded',
+                model: MODEL,
+                ready: false,
+                error: err.message
+            });
+        }
     }
 
     // ── Telephone scoring request ──────────────────────────────────────────
@@ -355,7 +476,8 @@ export default async function handler(req, res) {
         });
     }
 
-    const prompt = buildPrompt(difficultyLevel, metricsSummary, existingQuestions || null, categories || CATEGORIES);
+    const categorySubset = categories || CATEGORIES;
+    const prompt = buildPrompt(difficultyLevel, metricsSummary, existingQuestions || null, categorySubset);
 
     try {
         const geminiRes = await fetch(
@@ -368,7 +490,8 @@ export default async function handler(req, res) {
                     generationConfig: {
                         temperature: 0.65,
                         maxOutputTokens: 8192,
-                        responseMimeType: 'application/json'
+                        responseMimeType: 'application/json',
+                        responseSchema: buildResponseSchema(categorySubset, VALUES)
                     }
                 })
             }
@@ -387,7 +510,16 @@ export default async function handler(req, res) {
         const geminiData = await geminiRes.json();
         const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-        return res.status(200).json({ text });
+        // Parse server-side so the client gets clean JSON when possible
+        const questions = extractJson(text);
+        const responseBody = { text };
+        if (questions && typeof questions === 'object') {
+            responseBody.questions = questions;
+        } else {
+            console.warn('[Gemini Proxy] Could not parse SBMM JSON server-side');
+        }
+
+        return res.status(200).json(responseBody);
 
     } catch (err) {
         console.error('[Gemini Proxy] Request failed:', err);
