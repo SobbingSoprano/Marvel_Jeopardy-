@@ -151,7 +151,7 @@ Rules:
 - "question": Declarative clue, 12–22 words. NEVER a question. NEVER names the answer or obvious keywords.
   Bad: "Who leads the Avengers?" or "Thanos wore this golden glove"
   Good: "This star-spangled soldier from Brooklyn leads Earth's mightiest heroes"
-- "answer": 1–3 lowercase strings, no Jeopardy phrasing. e.g. ["thor", "thor odinson"]
+- "answer": 1–3 lowercase strings, no Jeopardy phrasing. Include the FULL name AND any commonly accepted short form or alias. e.g. ["foggy nelson", "foggy"] or ["thor", "thor odinson"]. The first entry should be the most complete form (used for display), the rest are accepted alternates.
 - Difficulty scales with value: $200=easiest in tier, $1000=hardest. Level raises the baseline.
 - All clues must be factually accurate Marvel canon.
 - Do NOT reuse any existing question above.

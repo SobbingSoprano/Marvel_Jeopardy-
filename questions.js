@@ -419,6 +419,14 @@ const GameState = {
             // Check if user answer contains the correct answer (e.g. "captain america civil war" for "captain america")
             if (normalizedUserAnswer.includes(normalizedCorrect)) return true;
 
+            // Reverse: correct answer contains the user's answer (e.g. "foggy" for "foggy nelson")
+            // Require at least 3 chars and 30% length ratio to avoid false positives on articles
+            if (normalizedCorrect.includes(normalizedUserAnswer)
+                && normalizedUserAnswer.length >= 3
+                && normalizedUserAnswer.length / normalizedCorrect.length >= 0.3) {
+                return true;
+            }
+
             return false;
         });
 

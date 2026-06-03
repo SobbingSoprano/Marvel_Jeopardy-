@@ -272,7 +272,6 @@ const Preloader = {
         if (this.quipInterval) {
             clearInterval(this.quipInterval);
         }
-        this.stopPreloaderAudio();
 
         return new Promise(resolve => {
             const preloader = document.querySelector('.preloader');
