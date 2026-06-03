@@ -200,11 +200,6 @@
                 <button class="submit-btn start-btn" id="startGameBtn" disabled onclick="startMultiplayerGame()">
                     Start Game
                 </button>
-                <button class="submit-btn debug-tel-btn" id="debugTelBtn"
-                        onclick="startDebugTelephone()"
-                        title="Test the Telephone minigame as a single player">
-                    Debug Telephone
-                </button>
             </div>
 
             <div id="guestMessage" style="display: none;">
@@ -422,21 +417,6 @@
         // Game started callback (for non-hosts)
         function onGameStarted() {
             PageTransitions.navigateTo(getGamePage(currentPlayerCount));
-        }
-
-        // Debug: single-player telephone test
-        async function startDebugTelephone() {
-            if (!confirm('Start a solo Telephone debug session? (Bot players will auto-fill.)')) return;
-
-            // Mark room as debug mode in Firebase
-            if (MultiplayerManager.roomRef) {
-                await MultiplayerManager.roomRef.update({ debugMode: true });
-            }
-
-            const success = await MultiplayerManager.startGame();
-            if (success) {
-                PageTransitions.navigateTo('mp_game.html');
-            }
         }
 
         // Leave room

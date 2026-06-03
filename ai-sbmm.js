@@ -138,6 +138,36 @@ const AISBMM = {
         step();
     },
 
+    // ── Board-update modal (shown on any difficulty change) ────────────────
+    _showBoardUpdateModal(title, subtitle) {
+        // Remove any existing modal first
+        this._hideBoardUpdateModal();
+
+        const div = document.createElement('div');
+        div.id = 'sbmm-board-update-modal';
+        div.className = 'question-overlay';
+        div.style.cssText = 'display:flex; z-index:200001;';
+        div.innerHTML = `
+            <div class="question-card" style="text-align:center; max-width:420px;">
+                <h2 class="guess-title" style="margin-bottom:0.5em;">${title}</h2>
+                <p class="guess-instructions" style="margin:0.5em 0 1.2em;">${subtitle}</p>
+                <div class="preloader-spinner" style="margin:0 auto;"></div>
+            </div>`;
+        document.body.appendChild(div);
+    },
+
+    _hideBoardUpdateModal(delayMs = 0) {
+        const remove = () => {
+            const el = document.getElementById('sbmm-board-update-modal');
+            if (el) el.remove();
+        };
+        if (delayMs > 0) {
+            setTimeout(remove, delayMs);
+        } else {
+            remove();
+        }
+    },
+
     // ── Gemini health check ────────────────────────────────────────────────
     async checkGeminiHealth() {
         try {
@@ -554,6 +584,18 @@ const AISBMM = {
         // (JS is single-threaded, so this is sufficient — no pre-stamp needed.)
         this.resetAllPlayerStreaks();
         this.updateScoreLog();
+
+        const oldLabel = ['', 'Normal', 'Hard', 'Expert'][oldLevel];
+        if (this.difficultyLevel < oldLevel) {
+            this._showBoardUpdateModal(`Difficulty lowered to ${label}`, 'Restoring original questions...');
+        } else if (this.difficultyLevel > oldLevel) {
+            const cached = this.generatedQuestions[this.difficultyLevel];
+            if (cached) {
+                this._showBoardUpdateModal(`Difficulty raised to ${label}`, 'Restoring cached questions...');
+            } else {
+                this._showBoardUpdateModal(`Difficulty raised to ${label}`, 'Generating new questions...');
+            }
+        }
         this.applyDifficultyToQuestions();
     },
 
@@ -571,7 +613,7 @@ const AISBMM = {
         if (recent[0] !== recent[2]) return false;
 
         // Only penalize while we're still early in the current difficulty stint
-        return this.answersSinceDifficultyChange <= 5;
+        return this.answersSinceDifficultyChange <= 2;
     },
 
     // ========================================
@@ -579,15 +621,28 @@ const AISBMM = {
     // ========================================
 
     applyDifficultyToQuestions() {
-        if (!this.enabled || !this.originalQuestions) return;
+        if (!this.enabled) return;
 
-        // Level 1 = Original questions (no change)
+        // Ensure we have the original question set captured
+        if (!this.originalQuestions && typeof allQuestions !== 'undefined') {
+            this.originalQuestions = JSON.parse(JSON.stringify(allQuestions));
+        }
+        if (!this.originalQuestions) return;
+
+        // Level 1 = Original questions (restore from snapshot)
         if (this.difficultyLevel === 1) {
+            let restored = 0;
             Object.keys(this.originalQuestions).forEach(cat => {
+                if (!allQuestions[cat]) return;
                 Object.keys(this.originalQuestions[cat]).forEach(val => {
+                    if (!allQuestions[cat][val]) return;
                     allQuestions[cat][val] = JSON.parse(JSON.stringify(this.originalQuestions[cat][val]));
+                    restored++;
                 });
             });
+            console.log(`[AI-SBMM] Restored original Normal questions: ${restored} clues.`);
+            this.logEvent(`Restored original Normal questions (${restored} clues)`, 'system');
+            this._hideBoardUpdateModal(1200);
             return;
         }
 
@@ -595,6 +650,7 @@ const AISBMM = {
         const cached = this.generatedQuestions[this.difficultyLevel];
         if (cached) {
             this._applyQuestionSet(cached, true);
+            this._hideBoardUpdateModal(1200);
             return;
         }
 
@@ -650,6 +706,7 @@ const AISBMM = {
     async requestGeminiQuestionUpdate(attempt = 1, force = false) {
         const now = Date.now();
         if (!force && now - this.lastAnalysisTime < this.analysisCooldown) {
+            this._hideBoardUpdateModal();
             return; // Rate limited
         }
         this.lastAnalysisTime = now;
@@ -690,6 +747,7 @@ const AISBMM = {
         } else {
             this._indicatorFail();
         }
+        this._hideBoardUpdateModal(1200);
     },
 
     async _fetchBatch(categories, currentQuestions, attempt = 1) {

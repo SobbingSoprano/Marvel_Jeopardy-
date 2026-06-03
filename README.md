@@ -99,7 +99,7 @@ If you keep bouncing between two difficulty levels (e.g., Normal ↔ Hard), the 
 
 - Oscillation is detected when the last 3 difficulty changes alternate between exactly 2 levels (e.g., Normal → Hard → Normal).
 - The dampener is active for your first 5 answers after each difficulty change.
-- Once you stabilize in one tier for 5+ answers, full scoring resumes.
+- Once you stabilize in one tier for 2+ answers, full scoring resumes.
 
 #### Question Caching
 
