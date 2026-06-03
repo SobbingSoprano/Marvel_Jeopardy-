@@ -6,12 +6,11 @@ A browser-based Jeopardy! game built around the Marvel Universe. Play with 2–4
 
 ## How to Play
 
-1. **Choose a game mode** — Select 2, 3, or 4 players from the main menu.
-2. **Enter player names** — Or stick with the defaults (Player 1, Player 2, etc.).
+1. **Choose a game mode** — Select 2, 3, or 4 players from the main menu, or online iwith friends around the globe.
+2. **Enter player names** —
 3. **Pick a category and value** — Click any card on the board. Higher values = harder questions.
 4. **Answer in Jeopardy! format** — Start your answer with *"Who is,"* *"What is,"* or *"Where is."* For example: *"Who is Captain America?"*
-5. **Control the board** — Answer correctly and you keep picking. Answer incorrectly and play passes to the next player.
-6. **Daily Double & Final Jeopardy** — Hidden on the board is one Daily Double where you can wager your own money. After all 30 cards are cleared, Final Jeopardy gives everyone one last chance to wager and win.
+5. **Daily Double & Final Jeopardy** — Hidden on the board is one Daily Double where you can wager your own money. After all 30 cards are cleared, Final Jeopardy gives everyone one last chance to wager and win the game.
 
 ### Final Jeopardy — Party-Game Features
 
@@ -206,23 +205,6 @@ If you reload the page, switch tabs, or navigate via the back-forward cache, bac
 
 ---
 
-## `.gitignore`
-
-The following files and directories are excluded from version control:
-
-| Pattern | Reason |
-|---------|--------|
-| `.vercel` | Vercel deployment metadata |
-| `.DS_Store` | macOS system files |
-| `Thumbs.db` | Windows thumbnail cache |
-| `desktop.ini` | Windows folder settings |
-| `*.tmp` | Temporary files |
-| `*.bak` | Backup files |
-| `*~` | Editor swap/backup files |
-
----
-
----
 
 ## System Architecture
 
