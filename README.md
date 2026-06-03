@@ -14,10 +14,10 @@ A browser-based Jeopardy! game built around the Marvel Universe. Play with 2–4
 
 ### Final Jeopardy — Party-Game Features
 
-- **Per-player lock-in** — Each player locks in their answer individually (with their own button or the `Enter` key). Once locked, the input is hidden behind a green "🔒 LOCKED IN" banner so no one can peek or change it.
+- **Per-player lock-in** — Each player locks in their answer individually (with their own button or the `Enter` key). Once locked, the input is hidden so no one can peek or change it.
 - **Answer censor** — On the shared local screen, each player's answer is typed into a password-style hidden field. A "Show/Hide" toggle lets that player verify their text without other players seeing it.
 - **Wager rule** — Everyone may wager up to the **highest score on the board** (not just their own score). This lets trailing players make a comeback bet equal to the leader's total.
-- **Auto-reveal** — A live status shows "X of Y locked in." Once every player is locked, answers and scores are revealed automatically.
+- **Auto-reveal** — Once every player is locked, answers and scores are revealed automatically.
 
 ---
 
