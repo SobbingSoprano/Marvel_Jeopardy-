@@ -50,17 +50,24 @@ const AudioManager = {
         // Restore state from a previous session (reload / bfcache)
         const state = this.restoreState();
         if (state && state.currentTrack) {
-            this.currentTrack = state.currentTrack;
+            // Always restore muted state (user preference)
             this.currentAudio.muted = !!state.muted;
             if (this._nextAudio) this._nextAudio.muted = !!state.muted;
-            if (!this.currentAudio.src) {
-                const src = this.tracks[state.currentTrack] || state.currentTrack;
-                this.currentAudio.src = src;
-                if (this._nextAudio) this._nextAudio.src = src;
-            }
-            if (state.wasPlaying) {
-                this.currentAudio.volume = 0;
-                this._pendingResume = true;
+
+            // Only restore track and auto-resume if we're on the same page.
+            // Prevents game audio leaking onto the homepage/navbar when leaving a match.
+            const isSamePage = !state.pageUrl || state.pageUrl === location.pathname;
+            if (isSamePage) {
+                this.currentTrack = state.currentTrack;
+                if (!this.currentAudio.src) {
+                    const src = this.tracks[state.currentTrack] || state.currentTrack;
+                    this.currentAudio.src = src;
+                    if (this._nextAudio) this._nextAudio.src = src;
+                }
+                if (state.wasPlaying) {
+                    this.currentAudio.volume = 0;
+                    this._pendingResume = true;
+                }
             }
         }
         
@@ -125,7 +132,8 @@ const AudioManager = {
                 currentTrack: this.currentTrack,
                 volume: this.volume,
                 muted: this.currentAudio ? this.currentAudio.muted : false,
-                wasPlaying: this.currentAudio && !this.currentAudio.paused
+                wasPlaying: this.currentAudio && !this.currentAudio.paused,
+                pageUrl: location.pathname
             }));
         } catch (_) {}
     },
@@ -658,54 +666,83 @@ const SoundEffects = {
 
 // Hover sound system (generic - skips player cards which have their own sounds)
 const HoverSound = {
-    audio: null,
+    _src: 'Assets/Sounds/click.wav',
+    _audio: null,
     enabled: true,
+    _observer: null,
+    _lastHover: 0,
+    _lastFocus: 0,
 
     init() {
-        this.audio = document.getElementById('hover-sfx');
-        if (!this.audio) return;
+        // Preload hover sound as a buffer so we can clone it for overlapping playback
+        this._audio = new Audio();
+        this._audio.preload = 'auto';
+        this._audio.src = this._src;
+        this._audio.load();
 
-        // Force preload so first hover isn't delayed / stacked
-        if (this.audio.preload === 'none') {
-            this.audio.preload = 'auto';
-        }
-        this.audio.load();
+        // Skip on touch devices — no hover on mobile and focus-on-touch is noisy
+        if (window.matchMedia('(pointer: coarse)').matches) return;
 
-        // Attach to all interactive elements (excluding player-option cards)
-        const selectors = 'button:not(.player-option), .value-cell, .buzzer-box, .submit-btn, .cancel-btn, .start-btn, a:not([href^="http"]):not(.player-option)';
-        const elements = document.querySelectorAll(selectors);
-        elements.forEach(el => {
-            if (el.dataset.hoverSoundAttached) return;
-            el.dataset.hoverSoundAttached = 'true';
-            el.addEventListener('mouseenter', () => this.play());
-            el.addEventListener('focus', () => this.play());
-            el.classList.add('hover-sound-active');
-        });
-
-        // Re-scan periodically for dynamically added elements
-        setInterval(() => this.scan(), 2000);
+        this._attachListeners();
+        this._setupObserver();
     },
 
-    scan() {
-        if (!this.audio) return;
-        const selectors = 'button:not([data-hover-sound-attached]):not(.player-option), .value-cell:not([data-hover-sound-attached]), .buzzer-box:not([data-hover-sound-attached]), .submit-btn:not([data-hover-sound-attached]), .cancel-btn:not([data-hover-sound-attached]), .start-btn:not([data-hover-sound-attached]), a:not([href^="http"]):not([data-hover-sound-attached]):not(.player-option)';
+    _attachListeners() {
+        const selectors = 'button:not(.player-option):not([data-hover-sound-attached]), .value-cell:not([data-hover-sound-attached]), .buzzer-box:not([data-hover-sound-attached]), .submit-btn:not([data-hover-sound-attached]), .cancel-btn:not([data-hover-sound-attached]), .start-btn:not([data-hover-sound-attached]), a:not([href^="http"]):not(.player-option):not([data-hover-sound-attached])';
         const elements = document.querySelectorAll(selectors);
         elements.forEach(el => {
             el.dataset.hoverSoundAttached = 'true';
-            el.addEventListener('mouseenter', () => this.play());
-            el.addEventListener('focus', () => this.play());
+            el.addEventListener('mouseenter', this._onHover);
+            el.addEventListener('focus', this._onFocus);
             el.classList.add('hover-sound-active');
         });
     },
+
+    _setupObserver() {
+        if (this._observer || typeof MutationObserver === 'undefined') return;
+        this._observer = new MutationObserver((mutations) => {
+            const hasNewNodes = mutations.some(m => m.type === 'childList' && m.addedNodes.length);
+            if (hasNewNodes) this._attachListeners();
+        });
+        this._observer.observe(document.body, { childList: true, subtree: true });
+    },
+
+    _onHover: (() => {
+        let last = 0;
+        const DEBOUNCE = 80;
+        return () => {
+            const now = Date.now();
+            if (now - last < DEBOUNCE) return;
+            last = now;
+            HoverSound.play();
+        };
+    })(),
+
+    _onFocus: (() => {
+        let last = 0;
+        const DEBOUNCE = 150;
+        return () => {
+            const now = Date.now();
+            if (now - last < DEBOUNCE) return;
+            last = now;
+            HoverSound.play();
+        };
+    })(),
 
     play() {
-        if (!this.enabled || !this.audio) return;
-        this.audio.currentTime = 0;
-        this.audio.volume = 0.4;
-        const promise = this.audio.play();
+        if (!this.enabled || !this._audio || this._audio.readyState < 2) return;
+        const clone = this._audio.cloneNode();
+        clone.volume = 0.4;
+        const promise = clone.play();
         if (promise !== undefined) {
             promise.catch(() => {});
         }
+        clone.onended = () => { clone.src = ''; clone.remove(); };
+        setTimeout(() => {
+            clone.onended = null;
+            clone.src = '';
+            clone.remove();
+        }, 3000);
     }
 };
 
