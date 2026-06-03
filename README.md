@@ -234,7 +234,6 @@ flowchart TB
         LOCAL["2P / 3P / 4P .html"]
         FJ_HTML["final_jeopardy.html"]
         MP["mp_game.html + lobby"]
-        PHP["2P / 3P / 4P .php"]
     end
 
     subgraph CORE["Application Layer (JS)"]
@@ -265,7 +264,7 @@ flowchart TB
     LOCAL --> PRE & PT & VIS & AUDIO & SEC & Q & SBMM & CT
     FJ_HTML --> PRE & PT & VIS & AUDIO & SEC & Q & SBMM & CT
     MP --> PRE & PT & VIS & AUDIO & SEC & Q & MP_JS & SBMM & CT & TEL
-    PHP --> PHP_Q[("questions.php<br/>(PHP data)")]
+
 
     SBMM --> Q & GEMINI & CT
     TEL --> MP_JS & GEMINI
@@ -289,7 +288,6 @@ The project is split into **three distinct game modes** that share the same ques
 |------|-------|-------|--------------|
 | **Local JS** | `2P/3P/4P.html`, `final_jeopardy.html` | `localStorage` (`GameState`) | Full preloader, transitions, audio, AI-SBMM, Community Training, visual effects |
 | **Online MP** | `lobby.html`, `mp_game.html`, `2P/3P/4P_mp.html` | Firebase RTDB + `sessionStorage` | Everything in Local JS plus real-time sync, 2-8 players, Telephone minigame |
-| **Legacy PHP** | `2P/3P/4P.php`, `final_jeopardy.php` | PHP `$_SESSION` | Basic server-rendered gameplay; no AI-SBMM, no transitions, no audio manager |
 
 ### Data Flows
 

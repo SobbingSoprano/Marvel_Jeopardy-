@@ -58,7 +58,6 @@ const Preloader = {
         });
 
         this.startQuips();
-        this.playPreloaderAudio();
         this.loadAssets();
     },
 
@@ -85,27 +84,6 @@ const Preloader = {
                 setTimeout(() => quipEl.classList.remove('quip-fade-in'), 500);
             }, 500);
         }, 3500);
-    },
-
-    // Play preloader ambient sound if available
-    playPreloaderAudio() {
-        const sfx = document.getElementById('preloader-sfx');
-        if (sfx) {
-            sfx.volume = 0.3;
-            const playPromise = sfx.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(() => {});
-            }
-        }
-    },
-
-    // Stop preloader audio
-    stopPreloaderAudio() {
-        const sfx = document.getElementById('preloader-sfx');
-        if (sfx) {
-            sfx.pause();
-            sfx.currentTime = 0;
-        }
     },
 
     // Load and track all assets
