@@ -558,11 +558,10 @@ export default async function handler(req, res) {
             resolvedModel = PREFERRED_MODEL;
         }
 
-        try {
-            // Health check: single quick probe with a short timeout.
-            // Retries/fallbacks are handled by the actual request path to keep this fast.
-            const testUrl = buildGeminiUrl(resolvedModel, apiKey);
-            const testRes = await fetchWithTimeout(testUrl, {
+        // Helper: send a tiny generateContent probe to a specific model.
+        async function healthProbe(modelName) {
+            const url = buildGeminiUrl(modelName, apiKey);
+            return fetchWithTimeout(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -577,30 +576,65 @@ export default async function handler(req, res) {
                         }
                     }
                 })
-            }, 8000);
+            }, 6000);
+        }
 
-            const testData = await testRes.json();
+        try {
+            let testedModel = resolvedModel;
+            let testRes;
+            let lastErr;
+
+            // Try the resolved model first. If it fails because the model is
+            // unavailable/overloaded, exclude it and pick the next-best model.
+            for (let i = 0; i < 2; i++) {
+                try {
+                    testRes = await healthProbe(testedModel);
+                    if (testRes.ok) break;
+
+                    const errText = await testRes.text();
+                    lastErr = `HTTP ${testRes.status} — ${errText}`;
+
+                    if (!isModelUnavailableError(testRes.status, errText)) break;
+
+                    console.warn(
+                        `[Gemini Proxy] Health probe model "${testedModel}" unavailable; ` +
+                        `trying next-best model...`
+                    );
+                } catch (probeErr) {
+                    lastErr = probeErr.message || 'probe failed';
+                    // Timeout/aborted probe on an overloaded model -> treat as unavailable
+                    console.warn(
+                        `[Gemini Proxy] Health probe model "${testedModel}" timed out; ` +
+                        `trying next-best model...`
+                    );
+                }
+
+                invalidateModelCache();
+                testedModel = await resolveModel(apiKey, [testedModel]);
+                if (testedModel.toLowerCase() === resolvedModel.toLowerCase()) {
+                    // No alternative model available
+                    break;
+                }
+            }
+
+            const testData = await testRes?.json?.() || {};
             const testText = testData.candidates?.[0]?.content?.parts?.[0]?.text || '';
             const testParsed = extractJson(testText);
-            const trulyReady = testRes.ok && testParsed?.status === 'ok';
+            const trulyReady = testRes?.ok && testParsed?.status === 'ok';
 
             if (!trulyReady) {
-                console.error('[Gemini Proxy] Health check DEGRADED — HTTP:', testRes.status, '| parsed:', testParsed, '| raw text:', testText.substring(0, 200));
+                console.error('[Gemini Proxy] Health check DEGRADED — last error:', lastErr, '| parsed:', testParsed, '| raw text:', testText.substring(0, 200));
             }
 
             return res.status(200).json({
                 status: trulyReady ? 'ok' : 'degraded',
-                model: resolvedModel,
+                model: testedModel,
                 preferredModel: PREFERRED_MODEL,
-                isFallback: resolvedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
+                isFallback: testedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
                 ready: trulyReady,
                 resolutionError: lastResolutionError || undefined,
                 modelsFound: lastModelsFound ?? undefined,
-                ...(trulyReady ? {} : {
-                    error: testRes.ok
-                        ? `Gemini API returned HTTP ${testRes.status} but body did not contain {"status":"ok"} (parsed: ${JSON.stringify(testParsed)})`
-                        : `Gemini API returned HTTP ${testRes.status} — ${testData.error?.message || 'unknown error'}`
-                })
+                ...(trulyReady ? {} : { error: lastErr || 'Gemini API returned unexpected response' })
             });
         } catch (err) {
             console.error('[Gemini Proxy] Health check failed:', err);
