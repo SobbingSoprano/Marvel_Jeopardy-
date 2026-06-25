@@ -583,6 +583,7 @@ export default async function handler(req, res) {
             let testedModel = resolvedModel;
             let testRes;
             let lastErr;
+            const attemptedModels = [testedModel];
 
             // Try the resolved model first. If it fails because the model is
             // unavailable/overloaded, exclude it and pick the next-best model.
@@ -610,11 +611,13 @@ export default async function handler(req, res) {
                 }
 
                 invalidateModelCache();
-                testedModel = await resolveModel(apiKey, [testedModel]);
-                if (testedModel.toLowerCase() === resolvedModel.toLowerCase()) {
+                const previousModel = testedModel;
+                testedModel = await resolveModel(apiKey, [previousModel]);
+                if (testedModel.toLowerCase() === previousModel.toLowerCase()) {
                     // No alternative model available
                     break;
                 }
+                attemptedModels.push(testedModel);
             }
 
             const testData = await testRes?.json?.() || {};
@@ -632,6 +635,7 @@ export default async function handler(req, res) {
                 preferredModel: PREFERRED_MODEL,
                 isFallback: testedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
                 ready: trulyReady,
+                attemptedModels,
                 resolutionError: lastResolutionError || undefined,
                 modelsFound: lastModelsFound ?? undefined,
                 ...(trulyReady ? {} : { error: lastErr || 'Gemini API returned unexpected response' })
@@ -644,6 +648,7 @@ export default async function handler(req, res) {
                 preferredModel: PREFERRED_MODEL,
                 isFallback: resolvedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
                 ready: false,
+                attemptedModels: [resolvedModel],
                 resolutionError: lastResolutionError || undefined,
                 modelsFound: lastModelsFound ?? undefined,
                 error: err.message
