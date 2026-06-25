@@ -176,10 +176,14 @@ const AISBMM = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'health' })
             });
-            if (!response.ok) throw new Error('Health check failed');
+            console.log('[AI-SBMM] Health check HTTP status:', response.status);
+            if (!response.ok) throw new Error(`Health check failed — HTTP ${response.status}`);
             const data = await response.json();
+            console.log('[AI-SBMM] Health check response:', data);
             this.geminiAvailable = data.ready !== false;
+            console.log('[AI-SBMM] Gemini available:', this.geminiAvailable);
         } catch (err) {
+            console.error('[AI-SBMM] Health check error:', err.message);
             this.geminiAvailable = false;
         }
         this.updateGeminiStatusUI();

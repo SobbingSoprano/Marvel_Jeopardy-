@@ -205,6 +205,45 @@ If you reload the page, switch tabs, or navigate via the back-forward cache, bac
 
 ---
 
+## Deployment & Environment Variables
+
+The project is deployed on **Vercel**. The AI features rely on a single serverless function at `api/gemini.js`.
+
+### Required environment variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GEMINI_API_KEY` | Your Google Gemini API key. | *(required)* |
+| `GEMINI_MODEL` | The Gemini model name to use (e.g. `gemini-3.5-flash`). | `gemini-3.5-flash` |
+
+Set these in the Vercel dashboard under **Project Settings → Environment Variables**.
+
+### Automatic model deprecation handling
+
+Google occasionally deprecates older Gemini models. The proxy now protects against downtime in two ways:
+
+1. **Runtime fallback** — `api/gemini.js` calls the Gemini `models.list` endpoint when the preferred model is unavailable. It automatically picks the newest stable `gemini-*-flash` model that supports `generateContent` and caches the choice for the lifetime of the function instance.
+2. **Weekly health-check workflow** — `.github/workflows/gemini-model-check.yml` runs every Sunday and:
+   - Checks whether the configured `GEMINI_MODEL` is still available.
+   - If not, selects a replacement using the same logic as the runtime fallback.
+   - Updates the `GEMINI_MODEL` environment variable in Vercel via the Vercel REST API.
+   - Triggers a production deploy via a Vercel deploy hook.
+   - Opens a GitHub issue documenting the change.
+
+To enable the workflow, add these repository secrets in **Settings → Secrets and variables → Actions**:
+
+| Secret | How to obtain |
+|--------|---------------|
+| `GEMINI_API_KEY` | Same key used by the Vercel function. |
+| `VERCEL_TOKEN` | Vercel account token from **Account Settings → Tokens**. |
+| `VERCEL_PROJECT_ID` | Found in `.vercel/project.json` under `projectId`. |
+| `VERCEL_DEPLOY_HOOK` | Create a deploy hook in Vercel under **Project Settings → Git → Deploy Hooks**. |
+
+You can also run the workflow manually from the **Actions** tab with the **force_update** option.
+
+---
+
+## `.gitignore`
 
 ## System Architecture
 

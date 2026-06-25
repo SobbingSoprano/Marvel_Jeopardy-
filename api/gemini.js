@@ -117,7 +117,187 @@ function getClientIP(req) {
 // Hardcoded game structure (mirrors questions.js)
 const CATEGORIES = ["People", "Powers", "Artifacts", "Media", "Teams", "Places"];
 const VALUES = ["$200", "$400", "$600", "$800", "$1000"];
-const MODEL = 'gemini-3.5-flash';
+
+// ── Model configuration ───────────────────────────────────────────────────────
+// Preferred model can be overridden via the GEMINI_MODEL env var.
+// If the preferred model is deprecated or unavailable, the proxy automatically
+// discovers a working replacement via the Gemini models.list endpoint.
+const DEFAULT_MODEL = 'gemini-3.5-flash';
+const PREFERRED_MODEL = (process.env.GEMINI_MODEL || DEFAULT_MODEL).trim();
+
+// Module-level cache for the resolved working model name.
+// Survives across warm invocations of the same function instance.
+let resolvedModelCache = null;
+
+/** Strip the "models/" prefix returned by the Gemini API */
+function stripModelsPrefix(name) {
+    return String(name || '').replace(/^models\//, '');
+}
+
+/** Check whether a model entry supports the generateContent method */
+function supportsGenerateContent(model) {
+    return Array.isArray(model.supportedGenerationMethods) &&
+           model.supportedGenerationMethods.includes('generateContent');
+}
+
+/** Heuristic: is this a Flash-family model? */
+function isFlashModel(name) {
+    return /gemini-.*flash/i.test(name);
+}
+
+/** Score a model name so newer, stable Flash models rank higher */
+function scoreModelName(name) {
+    let score = 0;
+
+    // Major version: gemini-3 > gemini-2 > gemini-1
+    const majorMatch = name.match(/gemini-(\d+)/i);
+    if (majorMatch) score += parseInt(majorMatch[1], 10) * 1000;
+
+    // Stable numbered releases (e.g. -001) score above aliases/preview/experimental
+    if (/gemini-\d+\.\d+-flash-\d{3}$/i.test(name)) score += 200;
+    else if (/gemini-\d+\.\d+-flash$/i.test(name)) score += 150;
+    else if (/gemini-\d+\.\d+-flash-lite-\d{3}$/i.test(name)) score += 120;
+    else if (/gemini-\d+\.\d+-flash-lite$/i.test(name)) score += 100;
+
+    // Penalize previews and experimental releases
+    if (/-preview/i.test(name)) score -= 50;
+    if (/-exp/i.test(name)) score -= 100;
+
+    return score;
+}
+
+/** Fetch the list of available Gemini models */
+async function listGeminiModels(apiKey) {
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    );
+    const text = await res.text();
+    if (!res.ok) {
+        throw new Error(`models.list failed: HTTP ${res.status} — ${text}`);
+    }
+    try {
+        return JSON.parse(text);
+    } catch (_) {
+        throw new Error(`models.list returned invalid JSON: ${text.substring(0, 200)}`);
+    }
+}
+
+/**
+ * Resolve the best available Gemini model.
+ * 1. Return cached model if already resolved.
+ * 2. Check if PREFERRED_MODEL is still available; use it if so.
+ * 3. Otherwise pick the newest stable Flash model that supports generateContent.
+ * 4. Fall back to any generateContent-capable model if no Flash is available.
+ * 5. On failure, fall back to PREFERRED_MODEL so requests still attempt to run.
+ */
+async function resolveModel(apiKey) {
+    if (resolvedModelCache) return resolvedModelCache;
+
+    try {
+        const data = await listGeminiModels(apiKey);
+        const models = Array.isArray(data?.models) ? data.models : [];
+
+        if (models.length === 0) {
+            throw new Error('models.list returned an empty model list');
+        }
+
+        // Check if the preferred model is still available
+        const preferredLower = PREFERRED_MODEL.toLowerCase();
+        const preferredEntry = models.find(m => {
+            const bare = stripModelsPrefix(m.name).toLowerCase();
+            return bare === preferredLower && supportsGenerateContent(m);
+        });
+
+        if (preferredEntry) {
+            resolvedModelCache = stripModelsPrefix(preferredEntry.name);
+            console.log(`[Gemini Proxy] Using preferred model: ${resolvedModelCache}`);
+            return resolvedModelCache;
+        }
+
+        // Filter candidates and prefer Flash-family models
+        const candidates = models.filter(supportsGenerateContent);
+        const flashCandidates = candidates.filter(m => isFlashModel(m.name));
+        const pool = flashCandidates.length > 0 ? flashCandidates : candidates;
+
+        pool.sort((a, b) => scoreModelName(b.name) - scoreModelName(a.name));
+
+        const chosen = pool[0];
+        if (!chosen) {
+            throw new Error('No generateContent-capable models found');
+        }
+
+        resolvedModelCache = stripModelsPrefix(chosen.name);
+        console.warn(
+            `[Gemini Proxy] Preferred model "${PREFERRED_MODEL}" is unavailable; ` +
+            `falling back to "${resolvedModelCache}"`
+        );
+        return resolvedModelCache;
+    } catch (err) {
+        console.error('[Gemini Proxy] Model resolution failed:', err.message);
+        // Last resort: use the preferred model and let the request fail normally
+        // if it is truly unavailable. The next request will retry resolution.
+        resolvedModelCache = PREFERRED_MODEL;
+        return resolvedModelCache;
+    }
+}
+
+/** Invalidate the cached model so the next request re-resolves */
+function invalidateModelCache() {
+    resolvedModelCache = null;
+}
+
+/** Build the Gemini generateContent URL for a given model */
+function buildGeminiUrl(model, apiKey) {
+    return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+}
+
+/**
+ * Detect whether an error response indicates the model itself is unavailable
+ * (deprecated, not found, unsupported) rather than a request/auth/rate-limit issue.
+ */
+function isModelUnavailableError(status, text) {
+    if (status === 404) return true;
+    if (status !== 400) return false;
+    const lower = text.toLowerCase();
+    return lower.includes('not found') ||
+           lower.includes('is not found for api version') ||
+           lower.includes('deprecated') ||
+           lower.includes('not supported') ||
+           lower.includes('unsupported') ||
+           lower.includes('invalid model');
+}
+
+/**
+ * Call Gemini generateContent with automatic retry on model deprecation.
+ * If the resolved model returns a model-unavailable error, the cache is cleared,
+ * a new model is discovered, and the request is retried once.
+ */
+async function generateContentWithRetry(apiKey, body, attempt = 0) {
+    const model = await resolveModel(apiKey);
+    const url = buildGeminiUrl(model, apiKey);
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    if (!res.ok && attempt === 0) {
+        const errText = await res.text();
+        if (isModelUnavailableError(res.status, errText)) {
+            console.warn(
+                `[Gemini Proxy] Model "${model}" unavailable (HTTP ${res.status}); ` +
+                `re-resolving and retrying once...`
+            );
+            invalidateModelCache();
+            return generateContentWithRetry(apiKey, body, attempt + 1);
+        }
+        // Preserve the error body for the caller while consuming it
+        return new Response(errText, { status: res.status, headers: res.headers });
+    }
+
+    return res;
+}
 
 function buildPrompt(difficultyLevel, metricsSummary, existingQuestions, categorySubset = CATEGORIES) {
     // Compact existing-questions block — only question text to save tokens & latency
@@ -321,41 +501,54 @@ export default async function handler(req, res) {
 
     // ── Health check ───────────────────────────────────────────────────────
     if (type === 'health') {
+        let resolvedModel;
         try {
-            const testRes = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: 'Reply with exactly {"status":"ok"}' }] }],
-                        generationConfig: {
-                            temperature: 0,
-                            responseMimeType: 'application/json',
-                            responseSchema: {
-                                type: 'OBJECT',
-                                properties: { status: { type: 'STRING' } },
-                                required: ['status']
-                            }
-                        }
-                    })
+            resolvedModel = await resolveModel(apiKey);
+        } catch (err) {
+            resolvedModel = PREFERRED_MODEL;
+        }
+
+        try {
+            const testRes = await generateContentWithRetry(apiKey, {
+                contents: [{ parts: [{ text: 'Reply with exactly {"status":"ok"}' }] }],
+                generationConfig: {
+                    temperature: 0,
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: 'OBJECT',
+                        properties: { status: { type: 'STRING' } },
+                        required: ['status']
+                    }
                 }
-            );
+            });
             const testData = await testRes.json();
             const testText = testData.candidates?.[0]?.content?.parts?.[0]?.text || '';
             const testParsed = extractJson(testText);
             const trulyReady = testRes.ok && testParsed?.status === 'ok';
+
+            if (!trulyReady) {
+                console.error('[Gemini Proxy] Health check DEGRADED — HTTP:', testRes.status, '| parsed:', testParsed, '| raw text:', testText.substring(0, 200));
+            }
+
             return res.status(200).json({
                 status: trulyReady ? 'ok' : 'degraded',
-                model: MODEL,
+                model: resolvedModel,
+                preferredModel: PREFERRED_MODEL,
+                isFallback: resolvedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
                 ready: trulyReady,
-                ...(trulyReady ? {} : { error: 'Gemini API returned unexpected response' })
+                ...(trulyReady ? {} : {
+                    error: testRes.ok
+                        ? `Gemini API returned HTTP ${testRes.status} but body did not contain {"status":"ok"} (parsed: ${JSON.stringify(testParsed)})`
+                        : `Gemini API returned HTTP ${testRes.status} — ${testData.error?.message || 'unknown error'}`
+                })
             });
         } catch (err) {
             console.error('[Gemini Proxy] Health check failed:', err);
             return res.status(200).json({
                 status: 'degraded',
-                model: MODEL,
+                model: resolvedModel,
+                preferredModel: PREFERRED_MODEL,
+                isFallback: resolvedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
                 ready: false,
                 error: err.message
             });
@@ -371,24 +564,17 @@ export default async function handler(req, res) {
         const prompt = buildTelephonePrompt(pairs);
 
         try {
-            const geminiRes = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            temperature: 0.2,
-                            responseMimeType: 'application/json',
-                            responseSchema: {
-                                type: 'ARRAY',
-                                items: { type: 'INTEGER', minimum: 0, maximum: 100 }
-                            }
-                        }
-                    })
+            const geminiRes = await generateContentWithRetry(apiKey, {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.2,
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: 'ARRAY',
+                        items: { type: 'INTEGER', minimum: 0, maximum: 100 }
+                    }
                 }
-            );
+            });
 
             if (!geminiRes.ok) {
                 const errText = await geminiRes.text();
@@ -480,22 +666,15 @@ export default async function handler(req, res) {
     const prompt = buildPrompt(difficultyLevel, metricsSummary, existingQuestions || null, categorySubset);
 
     try {
-        const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature: 0.65,
-                        maxOutputTokens: 8192,
-                        responseMimeType: 'application/json',
-                        responseSchema: buildResponseSchema(categorySubset, VALUES)
-                    }
-                })
+        const geminiRes = await generateContentWithRetry(apiKey, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.65,
+                maxOutputTokens: 8192,
+                responseMimeType: 'application/json',
+                responseSchema: buildResponseSchema(categorySubset, VALUES)
             }
-        );
+        });
 
         if (!geminiRes.ok) {
             const errText = await geminiRes.text();

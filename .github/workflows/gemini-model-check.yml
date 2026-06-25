@@ -1,0 +1,257 @@
+name: Gemini Model Health Check
+
+on:
+  schedule:
+    # Run every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force update even if the current model is still available'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  issues: write
+
+jobs:
+  check-and-update-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve current Gemini model
+        id: resolve
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          node <<'NODE'
+          const apiKey = process.env.GEMINI_API_KEY;
+          let currentModel = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
+          const vercelToken = process.env.VERCEL_TOKEN;
+          const projectId = process.env.VERCEL_PROJECT_ID;
+
+          if (!apiKey) {
+            console.error('GEMINI_API_KEY secret is not set.');
+            process.exit(1);
+          }
+
+          // Prefer the live Vercel env var value over the GitHub repository variable
+          if (vercelToken && projectId) {
+            try {
+              const res = await fetch(
+                `https://api.vercel.com/v10/projects/${projectId}/env`,
+                { headers: { Authorization: `Bearer ${vercelToken}` } }
+              );
+              if (res.ok) {
+                const data = await res.json();
+                const vercelEntry = (data.envs || []).find(e => e.key === 'GEMINI_MODEL');
+                if (vercelEntry?.value) {
+                  currentModel = vercelEntry.value.trim();
+                  console.log(`Using current Vercel GEMINI_MODEL: ${currentModel}`);
+                }
+              } else {
+                console.warn('Could not read Vercel env vars; using GitHub variable/default.');
+              }
+            } catch (err) {
+              console.warn('Error reading Vercel env vars:', err.message);
+            }
+          }
+
+          function stripModelsPrefix(name) {
+            return String(name || '').replace(/^models\//, '');
+          }
+
+          function supportsGenerateContent(model) {
+            return Array.isArray(model.supportedGenerationMethods) &&
+                   model.supportedGenerationMethods.includes('generateContent');
+          }
+
+          function isFlashModel(name) {
+            return /gemini-.*flash/i.test(name);
+          }
+
+          function scoreModelName(name) {
+            let score = 0;
+            const majorMatch = name.match(/gemini-(\d+)/i);
+            if (majorMatch) score += parseInt(majorMatch[1], 10) * 1000;
+
+            if (/gemini-\d+\.\d+-flash-\d{3}$/i.test(name)) score += 200;
+            else if (/gemini-\d+\.\d+-flash$/i.test(name)) score += 150;
+            else if (/gemini-\d+\.\d+-flash-lite-\d{3}$/i.test(name)) score += 120;
+            else if (/gemini-\d+\.\d+-flash-lite$/i.test(name)) score += 100;
+
+            if (/-preview/i.test(name)) score -= 50;
+            if (/-exp/i.test(name)) score -= 100;
+
+            return score;
+          }
+
+          async function listModels() {
+            const res = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+            );
+            const text = await res.text();
+            if (!res.ok) {
+              throw new Error(`models.list failed: HTTP ${res.status} — ${text}`);
+            }
+            return JSON.parse(text).models || [];
+          }
+
+          async function resolveModel() {
+            const models = await listModels();
+            if (models.length === 0) {
+              throw new Error('Gemini returned no models');
+            }
+
+            const currentLower = currentModel.toLowerCase();
+            const currentEntry = models.find(m => {
+              const bare = stripModelsPrefix(m.name).toLowerCase();
+              return bare === currentLower && supportsGenerateContent(m);
+            });
+
+            if (currentEntry) {
+              const chosen = stripModelsPrefix(currentEntry.name);
+              console.log(`Current model "${currentModel}" is available: ${chosen}`);
+              return { model: chosen, changed: false, fallback: false };
+            }
+
+            const candidates = models.filter(supportsGenerateContent);
+            const flashCandidates = candidates.filter(m => isFlashModel(m.name));
+            const pool = flashCandidates.length > 0 ? flashCandidates : candidates;
+            pool.sort((a, b) => scoreModelName(b.name) - scoreModelName(a.name));
+
+            const chosen = pool[0];
+            if (!chosen) {
+              throw new Error('No generateContent-capable models found');
+            }
+
+            const chosenName = stripModelsPrefix(chosen.name);
+            console.warn(
+              `Current model "${currentModel}" is unavailable. ` +
+              `Fallback model: ${chosenName}`
+            );
+            return { model: chosenName, changed: true, fallback: true };
+          }
+
+          resolveModel().then(result => {
+            const fs = require('fs');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `model=${result.model}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${result.changed}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `fallback=${result.fallback}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `previous=${currentModel}\n`);
+          }).catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Update Vercel environment variable
+        if: steps.resolve.outputs.changed == 'true' || inputs.force_update
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEW_MODEL: ${{ steps.resolve.outputs.model }}
+        run: |
+          node <<'NODE'
+          const token = process.env.VERCEL_TOKEN;
+          const projectId = process.env.VERCEL_PROJECT_ID;
+          const newModel = process.env.NEW_MODEL;
+
+          if (!token || !projectId) {
+            console.error('VERCEL_TOKEN and VERCEL_PROJECT_ID secrets are required to update the env var.');
+            process.exit(1);
+          }
+
+          const baseUrl = `https://api.vercel.com/v10/projects/${projectId}/env`;
+
+          async function vercelApi(method, url, body) {
+            const opts = {
+              method,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(url, opts);
+            const text = await res.text();
+            if (!res.ok) {
+              throw new Error(`Vercel API ${method} ${url} failed: HTTP ${res.status} — ${text}`);
+            }
+            return JSON.parse(text);
+          }
+
+          async function updateEnvVar() {
+            // Find existing GEMINI_MODEL env var
+            const list = await vercelApi('GET', baseUrl);
+            const existing = (list.envs || []).find(e => e.key === 'GEMINI_MODEL');
+
+            const target = ['production', 'preview', 'development'];
+
+            if (existing) {
+              await vercelApi('PATCH', `${baseUrl}/${existing.id}`, {
+                key: 'GEMINI_MODEL',
+                value: newModel,
+                target
+              });
+              console.log(`Updated existing GEMINI_MODEL env var (${existing.id}) to ${newModel}`);
+            } else {
+              await vercelApi('POST', baseUrl, {
+                key: 'GEMINI_MODEL',
+                value: newModel,
+                type: 'encrypted',
+                target
+              });
+              console.log(`Created GEMINI_MODEL env var with value ${newModel}`);
+            }
+          }
+
+          updateEnvVar().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Trigger Vercel production deploy
+        if: steps.resolve.outputs.changed == 'true' || inputs.force_update
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
+            echo "VERCEL_DEPLOY_HOOK secret is not set. Skipping deploy trigger."
+            echo "Set a deploy hook in Vercel (Project Settings > Git > Deploy Hooks) and add the URL as a secret."
+            exit 0
+          fi
+          curl -s -X POST "$VERCEL_DEPLOY_HOOK" -o /dev/null -w "Deploy hook HTTP %{http_code}\n"
+
+      - name: Create GitHub issue for model change
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat <<EOF > issue_body.md
+          ## Gemini model updated automatically
+
+          The current model \`${{ steps.resolve.outputs.previous }}\` is no longer available via the Gemini API.
+
+          The weekly health check selected a replacement and updated the Vercel environment:
+
+          | Field | Value |
+          |-------|-------|
+          | Previous model | \`${{ steps.resolve.outputs.previous }}\` |
+          | New model | \`${{ steps.resolve.outputs.model }}\` |
+          | Fallback used | \`${{ steps.resolve.outputs.fallback }}\` |
+
+          A production deployment has been triggered so the new \`GEMINI_MODEL\` env var takes effect.
+
+          If the new model causes unexpected behavior, you can:
+          1. Set \`GEMINI_MODEL\` manually in the Vercel dashboard.
+          2. Re-run this workflow with **force_update** if you want to refresh the selection.
+          EOF
+
+          gh issue create \
+            --title "Gemini model updated: ${{ steps.resolve.outputs.previous }} → ${{ steps.resolve.outputs.model }}" \
+            --body-file issue_body.md
