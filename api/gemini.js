@@ -168,10 +168,26 @@ function scoreModelName(name) {
     return score;
 }
 
+/**
+ * Fetch with an optional timeout to prevent Vercel function hangs.
+ * Node's global fetch has no default timeout.
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 /** Fetch the list of available Gemini models */
 async function listGeminiModels(apiKey) {
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    const res = await fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+        {},
+        10000
     );
     const text = await res.text();
     if (!res.ok) {
@@ -309,11 +325,12 @@ async function generateContentWithRetry(apiKey, body, attempt = 0, failedModels 
     const model = await resolveModel(apiKey, failedModels);
     const url = buildGeminiUrl(model, apiKey);
 
-    const res = await fetch(url, {
+    // Keep each attempt under 12s so two attempts fit inside Vercel's 30s ceiling.
+    const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
-    });
+    }, 12000);
 
     if (!res.ok && attempt === 0) {
         const errText = await res.text();
@@ -542,18 +559,26 @@ export default async function handler(req, res) {
         }
 
         try {
-            const testRes = await generateContentWithRetry(apiKey, {
-                contents: [{ parts: [{ text: 'Reply with exactly {"status":"ok"}' }] }],
-                generationConfig: {
-                    temperature: 0,
-                    responseMimeType: 'application/json',
-                    responseSchema: {
-                        type: 'OBJECT',
-                        properties: { status: { type: 'STRING' } },
-                        required: ['status']
+            // Health check: single quick probe with a short timeout.
+            // Retries/fallbacks are handled by the actual request path to keep this fast.
+            const testUrl = buildGeminiUrl(resolvedModel, apiKey);
+            const testRes = await fetchWithTimeout(testUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: 'Reply with exactly {"status":"ok"}' }] }],
+                    generationConfig: {
+                        temperature: 0,
+                        responseMimeType: 'application/json',
+                        responseSchema: {
+                            type: 'OBJECT',
+                            properties: { status: { type: 'STRING' } },
+                            required: ['status']
+                        }
                     }
-                }
-            });
+                })
+            }, 8000);
+
             const testData = await testRes.json();
             const testText = testData.candidates?.[0]?.content?.parts?.[0]?.text || '';
             const testParsed = extractJson(testText);
