@@ -700,9 +700,15 @@ const HoverSound = {
 
     _setupObserver() {
         if (this._observer || typeof MutationObserver === 'undefined') return;
+        let debounceTimer = null;
         this._observer = new MutationObserver((mutations) => {
             const hasNewNodes = mutations.some(m => m.type === 'childList' && m.addedNodes.length);
-            if (hasNewNodes) this._attachListeners();
+            if (!hasNewNodes) return;
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                debounceTimer = null;
+                this._attachListeners();
+            }, 100);
         });
         this._observer.observe(document.body, { childList: true, subtree: true });
     },

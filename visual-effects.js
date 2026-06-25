@@ -106,14 +106,16 @@ const ParallaxTitle = {
     title: null,
     marvel: null,
     jeopardy: null,
+    _pendingEvent: null,
+    _rafId: null,
 
     init() {
         this.title = document.querySelector('.title');
         if (!this.title) return;
-        
+
         // Only run on homepage (where video background exists)
         if (!document.querySelector('.video-background')) return;
-        
+
         // Skip on touch devices (no mouse) or very small screens
         if (window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768) return;
 
@@ -121,12 +123,21 @@ const ParallaxTitle = {
         this.jeopardy = this.title.querySelector('.title-jeopardy');
         this.enabled = true;
 
-        document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        document.addEventListener('mousemove', (e) => this._queueMouseMove(e));
     },
 
-    onMouseMove(e) {
+    _queueMouseMove(e) {
         if (!this.enabled) return;
-        
+        this._pendingEvent = e;
+        if (this._rafId) return;
+        this._rafId = requestAnimationFrame(() => this._applyMouseMove());
+    },
+
+    _applyMouseMove() {
+        this._rafId = null;
+        const e = this._pendingEvent;
+        if (!e || !this.enabled) return;
+
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
         const dx = (e.clientX - cx) / cx; // -1 to 1
