@@ -128,6 +128,8 @@ const PREFERRED_MODEL = (process.env.GEMINI_MODEL || DEFAULT_MODEL).trim();
 // Module-level cache for the resolved working model name.
 // Survives across warm invocations of the same function instance.
 let resolvedModelCache = null;
+let lastResolutionError = null;
+let lastModelsFound = null;
 
 /** Strip the "models/" prefix returned by the Gemini API */
 function stripModelsPrefix(name) {
@@ -196,6 +198,7 @@ async function resolveModel(apiKey) {
     try {
         const data = await listGeminiModels(apiKey);
         const models = Array.isArray(data?.models) ? data.models : [];
+        lastModelsFound = models.length;
 
         if (models.length === 0) {
             throw new Error('models.list returned an empty model list');
@@ -210,6 +213,7 @@ async function resolveModel(apiKey) {
 
         if (preferredEntry) {
             resolvedModelCache = stripModelsPrefix(preferredEntry.name);
+            lastResolutionError = null;
             console.log(`[Gemini Proxy] Using preferred model: ${resolvedModelCache}`);
             return resolvedModelCache;
         }
@@ -227,6 +231,7 @@ async function resolveModel(apiKey) {
         }
 
         resolvedModelCache = stripModelsPrefix(chosen.name);
+        lastResolutionError = null;
         console.warn(
             `[Gemini Proxy] Preferred model "${PREFERRED_MODEL}" is unavailable; ` +
             `falling back to "${resolvedModelCache}"`
@@ -234,16 +239,20 @@ async function resolveModel(apiKey) {
         return resolvedModelCache;
     } catch (err) {
         console.error('[Gemini Proxy] Model resolution failed:', err.message);
+        // Do not cache on failure so the next request retries resolution.
+        resolvedModelCache = null;
+        lastResolutionError = err.message;
         // Last resort: use the preferred model and let the request fail normally
-        // if it is truly unavailable. The next request will retry resolution.
-        resolvedModelCache = PREFERRED_MODEL;
-        return resolvedModelCache;
+        // if it is truly unavailable.
+        return PREFERRED_MODEL;
     }
 }
 
 /** Invalidate the cached model so the next request re-resolves */
 function invalidateModelCache() {
     resolvedModelCache = null;
+    lastResolutionError = null;
+    lastModelsFound = null;
 }
 
 /** Build the Gemini generateContent URL for a given model */
@@ -536,6 +545,8 @@ export default async function handler(req, res) {
                 preferredModel: PREFERRED_MODEL,
                 isFallback: resolvedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
                 ready: trulyReady,
+                resolutionError: lastResolutionError || undefined,
+                modelsFound: lastModelsFound ?? undefined,
                 ...(trulyReady ? {} : {
                     error: testRes.ok
                         ? `Gemini API returned HTTP ${testRes.status} but body did not contain {"status":"ok"} (parsed: ${JSON.stringify(testParsed)})`
@@ -550,6 +561,8 @@ export default async function handler(req, res) {
                 preferredModel: PREFERRED_MODEL,
                 isFallback: resolvedModel.toLowerCase() !== PREFERRED_MODEL.toLowerCase(),
                 ready: false,
+                resolutionError: lastResolutionError || undefined,
+                modelsFound: lastModelsFound ?? undefined,
                 error: err.message
             });
         }
