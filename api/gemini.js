@@ -191,9 +191,14 @@ async function listGeminiModels(apiKey) {
  * 3. Otherwise pick the newest stable Flash model that supports generateContent.
  * 4. Fall back to any generateContent-capable model if no Flash is available.
  * 5. On failure, fall back to PREFERRED_MODEL so requests still attempt to run.
+ *
+ * @param {string} apiKey
+ * @param {string[]} excludeModels  Model names to skip (e.g. ones that just failed)
  */
-async function resolveModel(apiKey) {
+async function resolveModel(apiKey, excludeModels = []) {
     if (resolvedModelCache) return resolvedModelCache;
+
+    const excludeLower = new Set(excludeModels.map(m => m.toLowerCase()));
 
     try {
         const data = await listGeminiModels(apiKey);
@@ -208,7 +213,9 @@ async function resolveModel(apiKey) {
         const preferredLower = PREFERRED_MODEL.toLowerCase();
         const preferredEntry = models.find(m => {
             const bare = stripModelsPrefix(m.name).toLowerCase();
-            return bare === preferredLower && supportsGenerateContent(m);
+            return bare === preferredLower &&
+                   supportsGenerateContent(m) &&
+                   !excludeLower.has(bare);
         });
 
         if (preferredEntry) {
@@ -219,7 +226,10 @@ async function resolveModel(apiKey) {
         }
 
         // Filter candidates and prefer Flash-family models
-        const candidates = models.filter(supportsGenerateContent);
+        const candidates = models.filter(m => {
+            const bare = stripModelsPrefix(m.name).toLowerCase();
+            return supportsGenerateContent(m) && !excludeLower.has(bare);
+        });
         const flashCandidates = candidates.filter(m => isFlashModel(m.name));
         const pool = flashCandidates.length > 0 ? flashCandidates : candidates;
 
@@ -227,7 +237,7 @@ async function resolveModel(apiKey) {
 
         const chosen = pool[0];
         if (!chosen) {
-            throw new Error('No generateContent-capable models found');
+            throw new Error('No generateContent-capable models found after exclusions');
         }
 
         resolvedModelCache = stripModelsPrefix(chosen.name);
@@ -266,14 +276,28 @@ function buildGeminiUrl(model, apiKey) {
  */
 function isModelUnavailableError(status, text) {
     if (status === 404) return true;
-    if (status !== 400) return false;
+
     const lower = text.toLowerCase();
-    return lower.includes('not found') ||
-           lower.includes('is not found for api version') ||
-           lower.includes('deprecated') ||
-           lower.includes('not supported') ||
-           lower.includes('unsupported') ||
-           lower.includes('invalid model');
+
+    // 400 with model-specific messaging
+    if (status === 400) {
+        return lower.includes('not found') ||
+               lower.includes('is not found for api version') ||
+               lower.includes('deprecated') ||
+               lower.includes('not supported') ||
+               lower.includes('unsupported') ||
+               lower.includes('invalid model');
+    }
+
+    // 503 overloaded is often model-specific ("This model is currently experiencing high demand")
+    if (status === 503) {
+        return lower.includes('model') ||
+               lower.includes('demand') ||
+               lower.includes('overloaded') ||
+               lower.includes('capacity');
+    }
+
+    return false;
 }
 
 /**
@@ -281,8 +305,8 @@ function isModelUnavailableError(status, text) {
  * If the resolved model returns a model-unavailable error, the cache is cleared,
  * a new model is discovered, and the request is retried once.
  */
-async function generateContentWithRetry(apiKey, body, attempt = 0) {
-    const model = await resolveModel(apiKey);
+async function generateContentWithRetry(apiKey, body, attempt = 0, failedModels = []) {
+    const model = await resolveModel(apiKey, failedModels);
     const url = buildGeminiUrl(model, apiKey);
 
     const res = await fetch(url, {
@@ -299,7 +323,7 @@ async function generateContentWithRetry(apiKey, body, attempt = 0) {
                 `re-resolving and retrying once...`
             );
             invalidateModelCache();
-            return generateContentWithRetry(apiKey, body, attempt + 1);
+            return generateContentWithRetry(apiKey, body, attempt + 1, [...failedModels, model]);
         }
         // Preserve the error body for the caller while consuming it
         return new Response(errText, { status: res.status, headers: res.headers });
