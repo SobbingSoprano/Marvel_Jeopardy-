@@ -28,6 +28,7 @@ const AISBMM = {
         skillScoreDown: -6,   // Drop difficulty when skillScore hits this
         fastAnswerMs: 6000,   // "Fast" answer — bonus multiplier applies
         slowAnswerMs: 21600,  // "Slow" answer — no score awarded for correct answers
+        minAnswersBeforeChange: 3, // Prevent a single lucky answer from immediately changing difficulty
     },
 
     // Point-value → base skill weight.  Higher-value questions count more.
@@ -370,7 +371,15 @@ const AISBMM = {
         // between two difficulties so the player settles into the right tier.
         const isOsc = this.isOscillating();
         const oscMod = isOsc ? 0.6 : 1.0;
-        const delta = rawDelta * ctMod * oscMod;
+        // Introductory debuff: for the first 4 picks, reduce positive point gains
+        // by 45% if the raw gain would cause an immediate difficulty increase.
+        // This prevents a single lucky early answer from jumping tiers.
+        const pickCount = this.sessionMetrics.pickCount || 0;
+        const projectedScore = (playerStats.skillScore || 0) + rawDelta;
+        const wouldTierUp = rawDelta > 0 && projectedScore >= this.thresholds.skillScoreUp;
+        const introDebuffActive = pickCount < 4 && wouldTierUp;
+        const introMod = introDebuffActive ? 0.55 : 1.0;
+        const delta = rawDelta * ctMod * oscMod * introMod;
         playerStats.skillScore = (playerStats.skillScore || 0) + delta;
 
         // Log this pick for community training (pick index = total answered so far + 1)
@@ -402,8 +411,9 @@ const AISBMM = {
         const nextThreshold = currentScore >= 0 ? this.thresholds.skillScoreUp : this.thresholds.skillScoreDown;
         const scoreStr = `${currentScore >= 0 ? '+' : ''}${currentScore.toFixed(1)}/${nextThreshold}`;
         const oscStr = isOsc ? ' [OSC -40%]' : '';
+        const introStr = introDebuffActive ? ' [INTRO -45%]' : '';
         this.logEvent(
-            `P${playerNum} • ${category} ${value}${timeStr} — ${isCorrect ? 'CORRECT' : 'WRONG'} [${deltaStr} pts. ${scoreStr}]${oscStr}`,
+            `P${playerNum} • ${category} ${value}${timeStr} — ${isCorrect ? 'CORRECT' : 'WRONG'} [${deltaStr} pts. ${scoreStr}]${oscStr}${introStr}`,
             entryType
         );
         if (answerTimeMs) {
@@ -541,6 +551,13 @@ const AISBMM = {
     // ========================================
 
     evaluateDifficulty(playerNum) {
+        // Gate: require a minimum number of answers since the last difficulty change
+        // before allowing another change. Prevents a single high-value fast answer
+        // from immediately jumping tiers.
+        if (this.answersSinceDifficultyChange < this.thresholds.minAnswersBeforeChange) {
+            return;
+        }
+
         const stats = this.getPlayerStats(playerNum);
         const score = stats.skillScore || 0;
         let newLevel = this.difficultyLevel;
