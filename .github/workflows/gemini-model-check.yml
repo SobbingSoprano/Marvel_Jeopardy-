@@ -28,6 +28,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           node <<'NODE'
+          import fs from 'fs';
+
           const apiKey = process.env.GEMINI_API_KEY;
           let currentModel = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
           const vercelToken = process.env.VERCEL_TOKEN;
@@ -137,7 +139,6 @@ jobs:
           }
 
           resolveModel().then(result => {
-            const fs = require('fs');
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `model=${result.model}\n`);
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${result.changed}\n`);
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `fallback=${result.fallback}\n`);
