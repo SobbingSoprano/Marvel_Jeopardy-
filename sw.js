@@ -132,7 +132,7 @@ async function staleWhileRevalidate(request, cacheName) {
     const networkFetch = fetch(request).then(response => {
         if (response.ok && response.status !== 206) cache.put(request, response.clone());
         return response;
-    }).catch(() => cached); // fall back to stale if offline
+    }).catch(() => cached || new Response('Not found', { status: 404 })); // fall back to stale or a 404
 
     return cached || networkFetch;
 }
