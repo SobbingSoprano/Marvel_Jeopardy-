@@ -19,7 +19,7 @@ const Preloader = {
     quips: [
         "Assembling the Avengers...",
         "Wakanda tech loading (HA! as if- they solved this AGES ago)...",
-        "Stark is still building this...",
+        "Stark is still building this (shocker...)",
         "Hulk SMASH... WRONG ANSWERS!!",
         "Spider-senses are tingling...",
         "Shields up! Claws Out! Loading assets...",
@@ -32,7 +32,7 @@ const Preloader = {
         "Even Captain America had to wait for the super serum",
         "Fury is recruiting players...",
         "Ant-Man is shrinking the load times...",
-        "Doctor Strange saw 14 million futures... You might win in one",
+        "Strange saw 14 million futures... You might win the match in one",
         "Galactus is having a 'snack' while we load...",
         "Syncing Cerebro...",
         "The Black Panther never freezes... unlike Chrome",
@@ -42,6 +42,7 @@ const Preloader = {
         "01010101 01101100 01110100 01110010 01101111 01101110 00100000 01010111 01100001 01110011 00100000 01001000 01100101 01110010 01100101 00101110 00101110 00101110",
         "I am Groot! (Translation: Loading...)",
         "Hint: Final Jeopardy is anyone's game, so dont give up if you're behind!",
+        "Assembling the NEW Avengers..."
     ],
 
     // Initialize preloader
